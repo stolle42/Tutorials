@@ -3,7 +3,8 @@ Typescript is a superset of Javascript. It extends Javascript by adding a type s
 # Prerequisites
 - Javascript
 # Tooling and preparation
--  ts-node
+Install the following tools:
+- ts-node
 - tsc
 - Node.js
 # Hello World
