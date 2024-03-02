@@ -4,6 +4,7 @@
 - [Architecture](#architecture)
 - [Hello World](#hello-world)
   - [Hello Pod](#hello-pod)
+  - [Hello Deployment](#hello-deployment)
 
 # What is Kubernetes (K8s)
 Kubernetes is a container orchestration tool. It is used to increase availability, scalability and performance of container applications (usually websites).
@@ -34,16 +35,20 @@ kubectl run helloPod --image=kicbase/echo-server
 ```
 Let't break down this command:
 
-`kubectl` is our kubernetes handle. We need it for every kubernetes command. 
+`kubectl` is our kubernetes handle. We need it for basically every kubernetes command. 
 
 `run` is the command we need to launch a pod.
 
 `helloPod` is the name of our pod.
 
-`kicbase/echo-server` is the image of our pod. It is a  server returning every command we send to it.
+`kicbase/echo-server` is the image of our pod. It is a webserver returning everything we sent to it. It has no purpose outside a debugging/demonstation context.
 
 You can check the status by running 
 ```
 kubectl get pods
 ```
-The status should be `pending` for the first few seconds, then switch to `running`. If it shows `failed` or any other errors, it was not successful.
+The status should be `pending` for the first few seconds, then switch to `running`. If should not show `failed` or any other errors.
+
+Let't check if the echo-server is working. https://kubernetes.io/docs/tutorials/kubernetes-basics/expose/expose-intro/
+## Hello Deployment
+The above method of creating pods is almost never used. 
