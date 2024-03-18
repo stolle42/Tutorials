@@ -15,7 +15,7 @@ Create an application (or choose an old application) which you want to run on di
 ```js
 console.log("Hello world!");
 ```
-save this as a javascript file (`hello-world.js`) and - congratulations! You created your first app!
+save this as a javascript file (`greeting.js`) and - congratulations! You created your first app!
 
 So how do we containerize it? Well, the first step is to create a `DOCKERFILE`. This is a plain text file containing all the instructions necessary to build the app, like OS-version, dependencies etc. You can think of it as a release document that is understandable to computers.
 
@@ -28,6 +28,23 @@ If you want to run a command within the container, use the `CMD`-command.
 
 These 3 commands are already enough to containerize our application:
 ```DOCKERFILE
+#our starting point:linux alpine with node.js installed
 FROM node:alpine 
-COPY hellow
+#simple app: container only needs this one file
+COPY greeing.js /home
+#run the greeting script, so we can see the output
+CMD node /home/greeting.js 
 ```
+Now we can to create the container by running
+```bash
+docker build .
+```
+It will be hard to run it though, since we haven't named it yet. We can access it by reffering to the imageID which we can find in the command output, but this is somewhat tedious. So instead, let's run
+```bash
+docker build -t helloworld .
+```
+Now we've named it `helloworld`, thus simplifying access and management of the container. For instance, we can easily run it like this:
+```bash
+docker run helloworld
+```
+This should now start the container and run the `greeting.js`-script, putting its output to the command line. Try it! Does your container greet the world?
