@@ -1,5 +1,7 @@
 # What is docker?
-Docker is a tool with which you can deploy and manage container applications. Containers are software packages containing all application code, dependencies and configuration settings. This allows you to easily run the application on different machines[^1] without the need to change any of the settings. This has the additional advantage that you won't need to update, install or remove any additional tools to run the software, since all additional tools are packaged into the container. 
+We all know the problem: Moving an application from one system to another sucks. There's a bunch of installers, dependencies and settings to adjust, leading to long and convoluted release documents that are tedious to write, tedious to read and in many cases incomplete. But we don't have to do this. Computers can do this for us. That's where docker comes into play.
+
+Docker is a tool with which you can deploy and manage container applications. Containers are software packages containing the whole application code, dependencies and configuration settings. This allows you to easily run the application on different machines[^1] without the need to change any of the settings. This has the additional advantage that you won't need to update, install or remove any additional tools to run the software, since all additional tools are packaged into the container. 
 
 Docker containers are lightweight, fast and completely independent from other applications. Basically, it provides you with all the advantages of a VM, at a much greater flexibility and speed while using less ressources.
 
@@ -11,13 +13,13 @@ Docker containers are lightweight, fast and completely independent from other ap
 # Architecture
 Docker uses a client-server-architecture: The server (docker engine) manages different docker clients. Clients are running on the host OS as regular processes.
 # Hello World
-Create an application (or choose an old application) which you want to run on different machines. If you don't have an application, you can create a very simple one like this:
+Choose an old application) which you want to run on different machines. If you don't have an application, you can create a very simple one like this:
 ```js
 console.log("Hello world!");
 ```
-save this as a javascript file (`greeting.js`) and - congratulations! You created your first app!
+Save this as a javascript file (`greeting.js`) and - congratulations! You created your first simple application!
 
-So how do we containerize it? Well, the first step is to create a `DOCKERFILE`. This is a plain text file containing all the instructions necessary to build the app, like OS-version, dependencies etc. You can think of it as a release document that is understandable to computers.
+Ok, but that was a sidequest. We actually want to containerize the app. So how do we do that? Well, the first step is to create a file named `DOCKERFILE`. This file contains all the instructions necessary to build the application, like OS-version, dependencies etc. You can think of it as a release document, but one that is understandable to computers.
 
 Let's talk about the most important DOCKERFILE-commands:
 Normally, you won't create the entire container. instead, you'll reuse and extend some container(s) that already exist in order to simplify your workflow. This is done by the command `FROM`.
@@ -35,15 +37,15 @@ COPY greeing.js /home
 #run the greeting script, so we can see the output
 CMD node /home/greeting.js 
 ```
-Now we can to create the container by running
+Now we can create our first image by running
 ```bash
 docker build .
 ```
-It will be hard to run it though, since we haven't named it yet. We can access it by reffering to the imageID which we can find in the command output, but this is somewhat tedious. So instead, let's run
+Actually, that was not the best command. It works, but we can only access and run it by reffering to the imageID available in the command output. This is somewhat tedious. So instead, let's build and name it:
 ```bash
 docker build -t helloworld .
 ```
-Now we've named it `helloworld`, thus simplifying access and management of the container. For instance, we can easily run it like this:
+Now we've created an image we can easily refer to by its name `helloworld`. For instance, we can easily run it like this:
 ```bash
 docker run helloworld
 ```
