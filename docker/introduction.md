@@ -3,17 +3,19 @@ We all know the problem: Moving an application from one system to another sucks.
 
 Docker is a tool with which you can deploy and manage container applications. Containers are software packages containing the whole application code, dependencies and configuration settings. This allows you to easily run the application on different machines[^1] without the need to change any of the settings. This has the additional advantage that you won't need to update, install or remove any additional tools to run the software, since all additional tools are packaged into the container. 
 
-Docker containers are lightweight, fast and completely independent from other applications. Basically, it provides you with all the advantages of a VM, at a much greater flexibility and speed while using less ressources.
+Docker containers are lightweight, fast and completely independent from other applications. It can also be replicated multiple times, thus making your application easily scalable. Basically, it provides you with all the advantages of a VM, at a much greater flexibility and speed while using less ressources.
 
 [^1]: The machines need to have a linux kernel for docker to work, so windows machines will need WSL
 # Prerequisites
 - Basic understanding of linux and the command line
 # Tooling and preparation
 - install docker
+- create an account at dockerhub
 # Architecture
 Docker uses a client-server-architecture: The server (docker engine) manages different docker clients. Clients are running on the host OS as regular processes.
 # Hello World
-Choose an old application) which you want to run on different machines. If you don't have an application, you can create a very simple one like this:
+## How to package an application into a container
+Choose an old application which you want to run on different machines. If you don't have an application, you can create a very simple one like this:
 ```js
 console.log("Hello world!");
 ```
@@ -37,6 +39,8 @@ COPY greeing.js /home
 #run the greeting script, so we can see the output
 CMD node /home/greeting.js 
 ```
+Note: In theory you can use any other linux distribution, but Linux Alpine is recommended for containers due to its small size.
+
 Now we can create our first image by running
 ```bash
 docker build .
@@ -45,8 +49,19 @@ Actually, that was not the best command. It works, but we can only access and ru
 ```bash
 docker build -t helloworld .
 ```
-Now we've created an image we can easily refer to by its name `helloworld`. For instance, we can easily run it like this:
+Now we've created an image we can easily refer to by its name `helloworld`. You can see a whole list of all the containers from your machine by running
+```bash
+docker images
+```
+We can now run it like this:
 ```bash
 docker run helloworld
 ```
 This should now start the container and run the `greeting.js`-script, putting its output to the command line. Try it! Does your container greet the world?
+
+Ok but so far we haven't actually accomplished much, this would have worked without docker as well. Let's now share it with another machine, so you can see its benefits firsthand!
+## How to share containers
+Ok, so now we will run the image on another machine (if you don't have one, you can use a virtual machine from [Play with Docker](https://www.docker.com/play-with-docker/)).
+
+In order to share it, we first need to publish it. There are 2 main container sharing websites: [Dockerhub](https://hub.docker.com) and [Github](https://github.com). 
+
