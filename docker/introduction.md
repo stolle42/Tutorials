@@ -15,31 +15,34 @@ Docker containers are lightweight, fast and completely independent from other ap
 Docker uses a client-server-architecture: The server (docker engine) manages different docker clients. Clients are running on the host OS as regular processes.
 # Hello World
 ## How to package an application into a container
-Choose an old application which you want to run on different machines. If you don't have an application, you can create a very simple one like this:
+Now we will create an application which we will then share across different machines.
+
+Create a javascript file called `greeting.js` with the following content:
 ```js
 console.log("Hello world!");
 ```
-Save this as a javascript file (`greeting.js`) and - congratulations! You created your first simple application!
+Congratulations! You created your first web application!
 
-Ok, but that was a sidequest. We actually want to containerize the app. So how do we do that? Well, the first step is to create a file named `DOCKERFILE`. This file contains all the instructions necessary to build the application, like OS-version, dependencies etc. You can think of it as a release document, but one that is understandable to computers.
+Ok, but that was a sidequest. Our goal is containerizing the app. So how do we do that? Well, the first step is to create a file named `DOCKERFILE`. This file contains all the instructions necessary to build the application, like OS-version, dependencies etc. You can think of it as a release document, but one that is understandable to computers.
 
-Let's talk about the most important DOCKERFILE-commands:
-Normally, you won't create the entire container. instead, you'll reuse and extend some container(s) that already exist in order to simplify your workflow. This is done by the command `FROM`.
+This tutorial will only cover about the most important DOCKERFILE-commands. A full list can be found [here](https://docs.docker.com/reference/dockerfile/).
+
+Normally, you won't create the entire container from scratch. instead, you'll reuse and extend some container(s) that already exist in order to simplify your workflow. This is done by the command `FROM`.
 
 In order to include all the files you need from host system into the container you need to copy them there by the `COPY`-command.
 
 If you want to run a command within the container, use the `CMD`-command.
 
-These 3 commands are already enough to containerize our application:
+We only need 3 commands to containerize our application:
 ```DOCKERFILE
-#our starting point:linux alpine with node.js installed
+#starting point: linux alpine with node.js installed
 FROM node:alpine 
 #simple app: container only needs this one file
-COPY greeing.js /home
+COPY greeting.js /home
 #run the greeting script, so we can see the output
 CMD node /home/greeting.js 
 ```
-Note: In theory you can use any other linux distribution, but Linux Alpine is recommended for containers due to its small size.
+Note: In theory you can use any linux distribution, but Linux Alpine is recommended for containers due to its lightweightness.
 
 Now we can create our first image by running
 ```bash
@@ -61,7 +64,45 @@ This should now start the container and run the `greeting.js`-script, putting it
 
 Ok but so far we haven't actually accomplished much, this would have worked without docker as well. Let's now share it with another machine, so you can see its benefits firsthand!
 ## How to share containers
-Ok, so now we will run the image on another machine (if you don't have one, you can use a virtual machine from [Play with Docker](https://www.docker.com/play-with-docker/)).
+Ok, so now we will share the image with another machine (if you don't have one, you can use a virtual machine from [Play with Docker](https://www.docker.com/play-with-docker/)).
 
-In order to share it, we first need to publish it. There are 2 main container sharing websites: [Dockerhub](https://hub.docker.com) and [Github](https://github.com). 
+The first step is publishing it. There are 2 main container sharing websites: [Dockerhub](https://hub.docker.com) and [Github](https://github.com). 
 
+TODO: finish chapter
+
+# First steps
+## How to work inside a container
+You can enter a container's terminal and make changes to the file system as if it were a virtual machine. Normally, this can be done by the command
+```bash
+docker run -it helloworld
+```
+However, linux alpine is a special case in which we need to add the entry point, so the command becomes:
+```bash
+docker run --entrypoint "/bin/sh" -it helloworld
+```
+Now you should have entered your container's terminal. You shell should show `/ # `. Try messing around in the file system. Most linux file commands should work here (e.g. list files, create a new dir, vi, cat,...)
+
+Now try installing a new package with the alpine package manager (apk):
+```bash
+apk add git
+```
+Verify the installation worked. Does `git --version` work?
+
+None of our changes are permanent. Type exit and relaunch the container with the integrated terminal like before. All the changes you made should be gone now and `git --version` should cause an error. That is because containers are by design stateless. They never store anything outside their lifecycle. 
+
+But what if we wanted a package to exist in a container?
+## How to install packages in the dockerfile
+Let's say we wanted git to be installed in our container. How do we do that? You might remember we already needed a package earlier. To make our simple greeting application, we had to install node.js, right?
+
+We did this by using the `node:alpine` image as our starting point. So for installing git, we could try
+```DOCKERFILE
+FROM git:alpine 
+```
+However this won't work, because Nobody has created an image like that yet. So instead, we need to install it ourselves. This can be done easily by appending
+```DOCKERFILE
+RUN apk add git
+```
+to the DOCKERFILE. Try it! Rebuild the docker image, then launch the integrated terminal of the container. Is git available in the container now without installing?
+## How to containerize a website
+So far, we only containerized a command line application. This won't do for most applications. Let's create a real html-based web application and containerize it.
+TODO: finish section 

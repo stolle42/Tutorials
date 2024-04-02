@@ -34,12 +34,12 @@ A system that runs on several machines
 <details><summary>  
 Docker containers are stateless. What does that mean, and why is it a good thing?
 </summary>  
-
+"Stateless" means changes are not saved when shut down. This simplifies scalability (no need to sync state when adding a new container), portability (no need to convert data to a different format compatible with a new system) and makes them more resilient (container failure can't corrupt data, since rebooting will reset it to a working state)
 </details>
 <details><summary>  
-
+How can data be stored persistently in a docker container?
 </summary>  
-
+Since docker containers are stateless, it isn't possible to persistently store data on them. Instead, a **bind mount** or a **volume** can be mounted in the docker file system, thus permanently saving data in a persistent location, e.g. on the host machine.
 </details>
 <details><summary>  
 
