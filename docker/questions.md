@@ -42,6 +42,26 @@ How can data be stored persistently in a docker container?
 Since docker containers are stateless, it isn't possible to persistently store data on them. Instead, a **bind mount** or a **volume** can be mounted in the docker file system, thus permanently saving data in a persistent location, e.g. on the host machine.
 </details>
 <details><summary>  
+How can we make sure our container keeps running properly after we created it?
+</summary>  
+Introduce a health check in the DOCKERFILE
+</details>
+<details><summary>  
+Why is it faster to build an image the second time than the first time?
+</summary>  
+Docker caches the layers and reuses them when there was no change
+</details>
+<details><summary>  
+
+</summary>  
+
+</details>
+<details><summary>  
+
+</summary>  
+
+</details>
+<details><summary>  
 
 </summary>  
 

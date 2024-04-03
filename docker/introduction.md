@@ -48,7 +48,7 @@ Now we can create our first image by running
 ```bash
 docker build .
 ```
-Actually, that was not the best command. It works, but we can only access and run it by reffering to the imageID available in the command output. This is somewhat tedious. So instead, let's build and name it:
+Actually, that was not the best command. It works, but the only way to access and run it is by reffering to the imageID from the command output. This is somewhat tedious. So instead, let's give it a name during build:
 ```bash
 docker build -t helloworld .
 ```
@@ -56,20 +56,45 @@ Now we've created an image we can easily refer to by its name `helloworld`. You 
 ```bash
 docker images
 ```
-We can now run it like this:
+This should show you name, tag, ID, age and size of your images.
+
+If you previously ran `docker build .` without naming it, you're probably seeing 2 images: one of them named `helloworld`, the other one named `<none>`. We should remove the unnamed one to keep things organized. Images can be deleted  by referring to their ID like this:
+```bash
+docker image remove [Image ID]
+```
+
+Ok, that's enough talk, let's run it now:
 ```bash
 docker run helloworld
 ```
 This should now start the container and run the `greeting.js`-script, putting its output to the command line. Try it! Does your container greet the world?
 
-Ok but so far we haven't actually accomplished much, this would have worked without docker as well. Let's now share it with another machine, so you can see its benefits firsthand!
+Ok but to be fair - we haven't actually accomplished that much, have we? A js-script can be launched without docker as well. Let's now share it with another machine, so you can see its benefits firsthand!
 ## How to share containers
-Ok, so now we will share the image with another machine (if you don't have one, you can use a virtual machine from [Play with Docker](https://www.docker.com/play-with-docker/)).
+Let's share the image with another machine (if you don't have another machine, you can use a virtual machine from [Play with Docker](https://www.docker.com/play-with-docker/)).
 
-The first step is publishing it. There are 2 main container sharing websites: [Dockerhub](https://hub.docker.com) and [Github](https://github.com). 
+The first step is publishing it to a container sharing website  (called docker registry). There are many options:
+- [Dockerhub](https://hub.docker.com)
+- [Github](https://github.com)
+- pretty much every big cloud computing platform
 
-TODO: finish chapter
+In this tutorial, we will use Dockerhub as our docker registry. Sharing a container on Dockerhub is somewhat similar to sharing code on Github. Let's get started!
 
+First of all, we need to create an account on Dockerhub. Then we need to login like this:
+```bash
+docker login
+```
+It will ask you for the username and password from the account you just created.
+
+After being logged in, we cannot yet push our image (you'll get the error `denied: requested access to the resource is denied`). That's because Dockerhub can only understand images a format like this: `[username]/[imagename]`. Renaming images is done by the `tag`-command:
+```bash
+docker tag helloworld [username]/helloworld
+```
+Now you can push it:
+```bash
+docker push [username]/helloworld
+```
+Check it out on the dockerhub website. Was a new repository called `helloworld` created?
 # First steps
 ## How to work inside a container
 You can enter a container's terminal and make changes to the file system as if it were a virtual machine. Normally, this can be done by the command
@@ -98,7 +123,7 @@ We did this by using the `node:alpine` image as our starting point. So for insta
 ```DOCKERFILE
 FROM git:alpine 
 ```
-However this won't work, because Nobody has created an image like that yet. So instead, we need to install it ourselves. This can be done easily by appending
+However this won't work, because an image like that has not been created yet. So instead, we need to install it ourselves. This can be done easily by appending
 ```DOCKERFILE
 RUN apk add git
 ```
@@ -106,3 +131,5 @@ to the DOCKERFILE. Try it! Rebuild the docker image, then launch the integrated 
 ## How to containerize a website
 So far, we only containerized a command line application. This won't do for most applications. Let's create a real html-based web application and containerize it.
 TODO: finish section 
+# Docker registry
+# Docker compose
