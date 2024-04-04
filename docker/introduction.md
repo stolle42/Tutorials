@@ -117,7 +117,7 @@ However, linux alpine is a special case in which we need to add the entry point,
 ```bash
 docker run --entrypoint "/bin/sh" -it helloworld
 ```
-Now you should have entered your container's terminal. You shell should show `/ # `. Try messing around in the file system. Most linux file commands should work here (e.g. list files, create a new dir, vi, cat,...)
+Now you should have entered your container's terminal. You shell should show `/ # `. Try messing around in the file system. Most file commands should work here (e.g. list files, create a new dir, vi, cat,...)
 
 Now try installing a new package with the alpine package manager (apk):
 ```bash
