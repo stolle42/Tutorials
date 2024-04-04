@@ -86,15 +86,27 @@ docker login
 ```
 It will ask you for the username and password from the account you just created.
 
-After being logged in, we cannot yet push our image (you'll get the error `denied: requested access to the resource is denied`). That's because Dockerhub can only understand images a format like this: `[username]/[imagename]`. Renaming images is done by the `tag`-command:
+After being logged in, we cannot yet push our image (you'll get the error `denied: requested access to the resource is denied`). That's because Dockerhub can only understand images that include your username in the followig format: `[username]/[imagename]`.
+
+So we need to rename the image. This is done by the `tag`-command:
 ```bash
 docker tag helloworld [username]/helloworld
 ```
-Now you can push it:
+Now you can push it with
 ```bash
 docker push [username]/helloworld
 ```
+making it available for the whole world.[^3]
+
+[^3]: If you don't want the whole world to get access to your container, you make your repo private.
+
 Check it out on the dockerhub website. Was a new repository called `helloworld` created?
+
+Now head over to a second machine (or virtual machine). Here, you can get the image by running
+```bash
+docker pull [username]/helloworld
+```
+Try to run it! Does your container greet the world from a different system? If yes, congratulations! You have created an application that will run on any system you want with no dependency or installation issues.
 # First steps
 ## How to work inside a container
 You can enter a container's terminal and make changes to the file system as if it were a virtual machine. Normally, this can be done by the command
