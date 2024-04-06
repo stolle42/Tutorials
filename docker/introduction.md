@@ -1,3 +1,17 @@
+- [What is docker?](#what-is-docker)
+- [Prerequisites](#prerequisites)
+- [Tooling and preparation](#tooling-and-preparation)
+- [Architecture](#architecture)
+- [Hello World](#hello-world)
+  - [How to package an application into a container](#how-to-package-an-application-into-a-container)
+  - [How to share containers](#how-to-share-containers)
+- [First steps](#first-steps)
+  - [How to work inside a container](#how-to-work-inside-a-container)
+  - [How to install packages in the dockerfile](#how-to-install-packages-in-the-dockerfile)
+  - [How to containerize a website](#how-to-containerize-a-website)
+- [Docker registry](#docker-registry)
+- [Docker compose](#docker-compose)
+
 # What is docker?
 We all know the problem: Moving an application from one system to another sucks. There's a bunch of installers, dependencies and settings to adjust, leading to long and convoluted release documents that are tedious to write, tedious to read and in many cases incomplete. But we don't have to do this. Computers can do this for us. That's where docker comes into play.
 
@@ -8,6 +22,7 @@ Docker containers are lightweight, fast and completely independent from other ap
 [^1]: The machines need to have a linux kernel for docker to work, so windows machines will need WSL
 # Prerequisites
 - Basic understanding of linux and the command line
+- Web development experience is helpful, but not necessary
 # Tooling and preparation
 - install docker
 - create an account at dockerhub
@@ -141,7 +156,50 @@ RUN apk add git
 ```
 to the DOCKERFILE. Try it! Rebuild the docker image, then launch the integrated terminal of the container. Is git available in the container now without installing?
 ## How to containerize a website
-So far, we only containerized a command line application. This won't do for most applications. Let's create a real html-based web application and containerize it.
-TODO: finish section 
+So far, we only containerized a command line application. This won't do for most applications, since internet users don't want to use the command line. Let's create an acutal web application now:
+
+The simplest possible website looks can be coded like this:
+```html
+<html>
+Hello World!
+</html>
+```
+Save this in a file called `index.html` and open it. Does it open your browser and show "Hello world"?
+
+In order to containerize it, we need to adjust the DOCKERFILE. We need to change a few things:
+1. Installing node won't be enough. Since we want to show a webpage, we need a webserver. Fortunately, there is a simple-to-use tool called `nginx` that can take care of that.  An appropriate alpine distribution has already been created, so we just need to change the `node`-image to `ningx`.
+2. We need to copy `index.html` instead of the javascript file. Also, nginx expects it to appear in its own directory, so copying it to /home won't work
+3. By default, Dockers firewall blocks traffic to all ports. So one of the ports needs to be exposed to the host machine. By default, nginx accepts traffic on port 80. We could reconfigure it to another port, but we won't do that here.
+
+With these changes, the DOCKERFILE becomes:
+```dockerfile
+#1: starting point:linux alpine with nginx installed
+FROM nginx:alpine 
+#2: copy our website to the place nginx expects it
+COPY index.html /usr/share/nginx/html/
+#3: expose Port 80
+EXPOSE 80
+```
+Now build it and run it. What do you see? Probably nothing. There will be some cryptic output in the command line, but you won't see the website, even if you try to access your website with `localhost`.
+
+That's because when we create a container, it won't automatically forward the port to the host system. And that is a good thing. Just imagine what would happen if there were hundrets of containers running in your system, each of them opening a bunch of ports from the host system. It would be chaos. So now we need to explicitly forward our port like this:
+```bash
+docker run -d -p 8080:80 helloworld
+```
+This opens our local port 8080 and forwards all traffic to port 80 of our container where nginx will handle it for us. Head over to your browser and open 
+```
+localhost:8080
+```
+Now it should show "Hello world".
+
+Ok great, but now it will just keep running. How do you stop the container you don't want it to run anymore? Well, first of all you need to list all running containers:
+```bash
+docker ps
+```
+This should show a container ID, which acts like a container handle. You can now stop your container like this:
+```bash
+docker stop [container ID]
+```
+Reload the localhost page in your browser. It should not show your website anymore.
 # Docker registry
 # Docker compose
