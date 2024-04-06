@@ -200,6 +200,12 @@ This should show a container ID, which acts like a container handle. You can now
 ```bash
 docker stop [container ID]
 ```
-Reload the localhost page in your browser. It should not show your website anymore.
+Reload the localhost page in your browser. Now your browser should show an error ("could not connect" or something like that).
+
+There is an easier way, too: Running 
+```bash
+docker system prune
+```
+will clean up radically. Use it with care.
 # Docker registry
 # Docker compose
