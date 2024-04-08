@@ -7,6 +7,7 @@
   - [Create a pod](#create-a-pod)
   - [How to expose a pod](#how-to-expose-a-pod)
   - [How to create a deployment](#how-to-create-a-deployment)
+- [First steps](#first-steps)
 
 # What is Kubernetes (K8s)
 Kubernetes is a container orchestration tool. It is used to increase availability, scalability and performance of container applications (usually websites). With kubernetes, websites can keep running smoothly even during times of updates, maintenance and high load without the end user noticing a thing. Even all-out server failures can be brushed over with kubernetes.
@@ -33,7 +34,7 @@ Currently the dashboard will be empty, because we have not yet created a pod. Le
 ```
 kubectl run hellopod --image=nginx
 ```
-`kubectl` is our kubernetes handle. We need it for basically every kubernetes command. 
+`kubectl` is our kubernetes handle. Get used to it, we need it for basically every kubernetes command. 
 
 `run` is the command we need to launch a pod.
 
@@ -76,17 +77,38 @@ Head over to your browser and open
 [cluster ip]:[exposed port]
 ```
 If it shows "Welcome to nginx" (or your own application if you used it), great! You have sucessfully integrated an application in kubernetes!
-## How to create a deployment
-The above method of creating pods is the most simple one, but it is rarely used in practice. It is much more common to create a **deployment**. 
 
-A deployment can be imagined as a pod supervisor. It creates the pod and makes sure it keeps running. If the pod terminates, the deployment restarts it. You can set the deployment to create replicas of the pod. This way, we can  increase pod availability due to redundancy (if one of the pods terminates, we can use its replica).
-
-Let's create a deployment:
+If now delete the service with
 ```bash
-kubectl create deployment hello-deployment --image=kicbase/echo-server
+
 ```
-`kubectl get pods` should now show a new running pod called something like `hello-deployment-7dd5559ccf-mnqj6`. We can check the deployment directly by running
+the application should not be available anymore in your browser.
+## How to create a deployment
+Ok, switching on and off a webservice with a single command is convenient, but we don't need a heavy tool like kubernetes for that. You can achieve the same thing much easiser with a tool like docker. Therefore, the above method of creating pods is rarely used in practise (Nevertheless it is vital for understanding the following concepts).
+
+So how do we create pods in real life? Well, we don't create them directly. Instead, we'll create a **deployment**. 
+
+A deployment is something like a pod supervisor. It creates the pod and ensures its continued existence and availability. 
+
+If the pod terminates, the deployment starts a new one in its place. You can set the deployment to create replicas of the pod. This way, we can increase pod availability and performance due to redundancy (if one of the pods terminates, we can use its replica. If all of them are available, they can share the workload).
+
+Ok, enough theory. Let's get our hands dirty and create a deployment:
+```bash
+kubectl create deployment hello-deployment --image=nginx
 ```
+Running `kubectl get pods` should show a new pod called `hello-deployment-[id]`. We can check the deployment directly by running
+```bash
 kubectl get deployments
 ```
-It should show hello-deployment as ready with a marker 1/1. That means the pod has been created only once, with no replicas. We will later see (which chapter?) how we use replicaSets to increase the number of pods, thus creating redundancy.
+It should show `hello-deployment` and ind the READY-column it should show `1/1`. That means the pod has been created once, without replicas. Let's delete our pod again (`kubectl delete deployment hello-deployment`) and increase the number of pod replicas, thus creating redundancy:
+```bash
+kubectl create deployment hello-deployment  --replicas=3
+```
+Check out the deployments again. Does the ready-column show `3/3` now?
+
+Ok but still, all we did was create 3 instances of the same container. We could have done this with Docker. The great thing about kubernetes is its respawing capabilities. Delete one of the pods from `hello-deployment` (you already know how to do that).
+
+Now check out the pods again. You should still see 3 pods of the form `hello-deployment-[id]`, but in the age-column, you should see that one of them is younger than the other two. This one should also have an id that wasn't there earlier.
+
+That is the actual power of kubernetes. No matter what happens to the pod, the deployment will always be there and spawn a new one. This cannot be achieved with a simple tool like Docker. And you don't want to write time-consuming, error-prone script for this, do you? Especially once you learn that Kubernetes has many more features making our lives easier ready to explore.
+# First steps
