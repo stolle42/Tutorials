@@ -8,6 +8,16 @@
   - [How to expose a pod](#how-to-expose-a-pod)
   - [How to create a deployment](#how-to-create-a-deployment)
 - [First steps](#first-steps)
+  - [How to edit an existing ressource](#how-to-edit-an-existing-ressource)
+  - [How to preview an object before creating it](#how-to-preview-an-object-before-creating-it)
+  - [How to store data permanently](#how-to-store-data-permanently)
+  - [How to store confidential data](#how-to-store-confidential-data)
+    - [How to create and use secretes](#how-to-create-and-use-secretes)
+    - [Shortcomings of secrets](#shortcomings-of-secrets)
+    - [Alternatives to secrets](#alternatives-to-secrets)
+  - [How to group objects together](#how-to-group-objects-together)
+    - [Namespaces](#namespaces)
+    - [Labels](#labels)
 
 # What is Kubernetes (K8s)
 Kubernetes is a container orchestration tool. It is used to increase availability, scalability and performance of container applications (usually websites). With kubernetes, websites can keep running smoothly even during times of updates, maintenance and high load without the end user noticing a thing. Even all-out server failures can be brushed over with kubernetes.
@@ -17,7 +27,7 @@ Kubernetes is a container orchestration tool. It is used to increase availabilit
 Install:
 - minikube (a lightweight open-source version of kubernetes missing some features)
 # Architecture
-The largest Kubernetes unit is called **cluster**. Each cluster consists of several **nodes** that might run on seperate machines. Each node consists of several **pods**. A pod is the smallest unit in kubernetes and it consists of one or more Docker-containers (but ususally one).
+The largest Kubernetes ressource is called **cluster**. Each cluster consists of several **nodes** that might run on seperate machines. Each node consists of several **pods**. A pod is the smallest ressource in kubernetes and it consists of one or more Docker-containers (but ususally one).
 # Hello World
 ## How to set up minikube
 The command
@@ -52,7 +62,7 @@ Watch the status column. The status of your pod should be `pending` for the firs
 ## How to expose a pod
 So far, the containers have been closed of in kubernets, unavailable to the ouside world. In order to actually benefit from the power of kubernetes, the containers need to be exposed, so they can act as web servers we can access with a browser.
 
-In order to do this, we need to create a service. In Kubernetes, services group some pods together and set a common access policy to them. There are 4 types of services:
+In order to do this, we need to create a **service**. In Kubernetes, services group some pods together and set a common access policy to them. There are 4 types of services:
 - ClusterIP: Service is only accessible from inside the cluster
 - NodePort: Service is accessible from outside the cluster on a specific port
 - LoadBalancer: Service is accessible from outside the cluster via an external program that tries to divide the traffic to the endpoints equally
@@ -112,3 +122,39 @@ Now check out the pods again. You should still see 3 pods of the form `hello-dep
 
 That is the actual power of kubernetes. No matter what happens to the pod, the deployment will always be there and spawn a new one. This cannot be achieved with a simple tool like Docker. And you don't want to write time-consuming, error-prone script for this, do you? Especially once you learn that Kubernetes has many more features making our lives easier ready to explore.
 # First steps
+## How to edit an existing ressource
+You might have noticed that every time we wanted to change some settings in a ressource (e.g. a pod), we had to delete it and relaunch it with new settings. This is not only tedious, but unaccaptable in a production context. There is a better way: If you want to change settings, run
+```bash
+kubectl edit [ressource]
+```
+This will open a yaml-configuration file in vim (also called object **manifest**). Here, you can edit a plethora of settings that might seem intimidating at first. But don't worry, we'll get there.
+
+Some of the settings might already seem familiar. Can you spot the `replicas`-setting in the deployment configuration? Try to change the number. Now close the file. Kubernetes should apply the new settings automatically. Check if it worked. Does `kubectl get deployments` show another number of replicas now?
+## How to preview an object before creating it
+What if we want to check if one of our commands has the right syntax without actually creating an object? Well, there is a flag for that: `dry-run=client`.
+
+This is more useful when paired with the object preview flag: `-o yaml`(change yaml to json if you prefer that). Try to get a grasp of it by running
+```bash
+kubectl run pod hello-pod --dry-run=client --image=nginx -o yaml
+```
+This command should not affact your cluster in any way.
+
+
+## How to store data permanently
+Websites need to store data permanently. A website without a database is pretty useless in this day and age. But how do we do that in kubernetes? Storing it in a pod is unacceptable due to several reasons:
+- if a pod fails, it will be restarted, but all its data will be lost
+- pods don't really make sense without replicas. But if every pods stores different data, the website will be hillariously inconsistent
+Luckily, kubernetes offers an object for this use case: **volumes**.
+## How to store confidential data
+Websites and other programs frequently need to handle and store data that should not be viewed by the public. In Kubernetes, this can be achieved with **secrets**.
+### How to create and use secretes
+### Shortcomings of secrets
+### Alternatives to secrets
+## How to group objects together
+Just like in every other field of computer science (and in life), a high number of certain objects make it harder for the user to keep an overview and find single objects. That's why we group files together in folders, or code in classes and functions. Organization just makes our lives easier.
+
+Kubernetes is no exception. In big projects, it is not uncommon to have hundrets of pods, deployments, services etc. And worse yet - several projects might have to share the same cluster to reduce cost. Obviously, managing a cluster like that with no grouping would be vastly chaotic.
+Luckily, kubernetes offers 2 ways to group objects together: **Namespaces** and **labels**.
+### Namespaces
+### Labels
+
