@@ -9,6 +9,7 @@
   - [How to work inside a container](#how-to-work-inside-a-container)
   - [How to install packages in the dockerfile](#how-to-install-packages-in-the-dockerfile)
   - [How to containerize a website](#how-to-containerize-a-website)
+  - [How to stop a running container](#how-to-stop-a-running-container)
 - [Docker registry](#docker-registry)
 - [Docker compose](#docker-compose)
 
@@ -158,13 +159,15 @@ to the DOCKERFILE. Try it! Rebuild the docker image, then launch the integrated 
 ## How to containerize a website
 So far, we only containerized a command line application. This won't do for most applications, since internet users don't want to use the command line. Let's create an acutal web application now:
 
-The simplest possible website looks can be coded like this:
+The simplest possible website can be coded like this:
 ```html
 <html>
 Hello World!
 </html>
 ```
-Save this in a file called `index.html` and open it. Does it open your browser and show "Hello world"?
+It will just show the text "Hello World!" on a screen and nothing more.
+
+Save this in a file called `index.html`. Open it in your browser to make sure the code does what it is supposed to.
 
 In order to containerize it, we need to adjust the DOCKERFILE. We need to change a few things:
 1. Installing node won't be enough. Since we want to show a webpage, we need a webserver. Fortunately, there is a simple-to-use tool called `nginx` that can take care of that.  An appropriate alpine distribution has already been created, so we just need to change the `node`-image to `ningx`.
@@ -191,7 +194,7 @@ This opens our local port 8080 and forwards all traffic to port 80 of our contai
 localhost:8080
 ```
 Now it should show "Hello world".
-
+## How to stop a running container
 Ok great, but now it will just keep running. How do you stop the container you don't want it to run anymore? Well, first of all you need to list all running containers:
 ```bash
 docker ps
@@ -206,6 +209,6 @@ There is an easier way, too: Running
 ```bash
 docker system prune
 ```
-will clean up radically. Use it with care.
+will clean up all the docker containers that have been stopped. Use it with care.
 # Docker registry
 # Docker compose

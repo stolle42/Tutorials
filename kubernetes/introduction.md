@@ -7,9 +7,10 @@
   - [Create a pod](#create-a-pod)
   - [How to expose a pod](#how-to-expose-a-pod)
   - [How to create a deployment](#how-to-create-a-deployment)
-- [First steps](#first-steps)
+- [Kubectl tricks](#kubectl-tricks)
   - [How to edit an existing ressource](#how-to-edit-an-existing-ressource)
   - [How to preview an object before creating it](#how-to-preview-an-object-before-creating-it)
+- [First steps](#first-steps)
   - [How to store data permanently](#how-to-store-data-permanently)
   - [How to store confidential data](#how-to-store-confidential-data)
     - [How to create and use secretes](#how-to-create-and-use-secretes)
@@ -18,9 +19,13 @@
   - [How to group objects together](#how-to-group-objects-together)
     - [Namespaces](#namespaces)
     - [Labels](#labels)
+  - [Ressource usage](#ressource-usage)
+  - [How to limit memory usage](#how-to-limit-memory-usage)
 
 # What is Kubernetes (K8s)
 Kubernetes is a container orchestration tool. It is used to increase availability, scalability and performance of container applications (usually websites). With kubernetes, websites can keep running smoothly even during times of updates, maintenance and high load without the end user noticing a thing. Even all-out server failures can be brushed over with kubernetes.
+
+Kubernetes is superior to traditional, monolithic web application in almost every regard. However it does add complexity to a system and requires skilled engineers to set up and maintain it, so it won't be suitable in every use case. Depending on the specifics, a monolith might still be the better option.
 # Prerequisites
 - Docker
 # Tooling and preparation
@@ -121,7 +126,7 @@ Ok but still, all we did was create 3 instances of the same container. We could 
 Now check out the pods again. You should still see 3 pods of the form `hello-deployment-[id]`, but in the age-column, you should see that one of them is younger than the other two. This one should also have an id that wasn't there earlier.
 
 That is the actual power of kubernetes. No matter what happens to the pod, the deployment will always be there and spawn a new one. This cannot be achieved with a simple tool like Docker. And you don't want to write time-consuming, error-prone script for this, do you? Especially once you learn that Kubernetes has many more features making our lives easier ready to explore.
-# First steps
+# Kubectl tricks
 ## How to edit an existing ressource
 You might have noticed that every time we wanted to change some settings in a ressource (e.g. a pod), we had to delete it and relaunch it with new settings. This is not only tedious, but unaccaptable in a production context. There is a better way: If you want to change settings, run
 ```bash
@@ -139,11 +144,12 @@ kubectl run pod hello-pod --dry-run=client --image=nginx -o yaml
 ```
 This command should not affact your cluster in any way.
 
-
+# First steps
 ## How to store data permanently
 Websites need to store data permanently. A website without a database is pretty useless in this day and age. But how do we do that in kubernetes? Storing it in a pod is unacceptable due to several reasons:
 - if a pod fails, it will be restarted, but all its data will be lost
-- pods don't really make sense without replicas. But if every pods stores different data, the website will be hillariously inconsistent
+- pods are mostly replicated. But if every pods stores different data, the website will be hillariously inconsistent. Depending on what pod you happen to land on, you'll get different results.
+
 Luckily, kubernetes offers an object for this use case: **volumes**.
 ## How to store confidential data
 Websites and other programs frequently need to handle and store data that should not be viewed by the public. In Kubernetes, this can be achieved with **secrets**.
@@ -158,3 +164,47 @@ Luckily, kubernetes offers 2 ways to group objects together: **Namespaces** and 
 ### Namespaces
 ### Labels
 
+## Ressource usage
+High cpu or memory usage (e.g. due to memory leaks) can be a huge problem for traditonal web servers. If a program keeps allocating more and more storage, several problems can occur that are often hard to spot and to solve.
+
+Kubernetes offers a way to confine this problem and limit its repercussions: object ressource limits. An object (e.g. a pod) can be limited to a certain amount of memory or cpu usage. That way, the host system will not be affected making the solution process easier and in many cases limiting the scope of the problem to a single pod.
+## How to limit memory usage
+When changing a pod's config (`kubectl edit hello-deployment-[id]`), you'll find the limit settings in the `spec.containers[].resources`-section. It will look something like this:
+```yaml
+resources:
+      limits:
+        memory: 100Mi
+      requests:
+        memory: 100Mi
+```
+Ok, what do these settings mean?
+- limits: Maximum amount of memory the pod is allowed to use. Exceeding the limit will cause an OOM-Error.
+- requests: Minimum memory amount reservation. Kubectl guarantees that at least this amount will be available for the pod at any time.
+
+ Since we never specified any limits, `100Mi` (100 Megabytes) was used as a default value. By the way - requests can never be greater than limits, because obviously.
+
+Let's try to change the limits now. If you already tried changing the limit while editing, you should have gotten an error message. Thats because pod settings should never be edited directly. It would cause inconsistencies among replicated pods. Also all pod setting changes will be lost after a pod replacement anyway.
+
+So let's edit the deployment settings directly:
+```bash
+kubectl edit deployment hello-deployment 
+```
+Look for the `spec.templates.spec.containers[].resources`-map. If you haven't edited it yet, it should be empty. Now we can insert our own limits and requests, e.g.
+```yaml
+      limits:
+        memory: 10Mi
+      requests:
+        memory: 5Mi
+```
+Have a look into the pod settings. Did they get updated?
+
+You can try to occupy enough storage now to push the container to its limits, but be warned - the pod filesystem is rather confusing and won't be part of this introduction.
+
+You can limit cpu usage, too. There is a special unit for this called `Millicore`. 1000 Millicores equal 1 CPU core. Limiting the cpu usage to 10% of the host machine's processing power is done like this:
+```yaml
+      limits:
+        cpu: 100m
+      requests:
+        memory: 100m 
+```
+Todo: Check object status to get ressource usage
