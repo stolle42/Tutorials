@@ -12,10 +12,12 @@
   - [How to preview an object before creating it](#how-to-preview-an-object-before-creating-it)
   - [How to create an object from manifest](#how-to-create-an-object-from-manifest)
   - [How to work inside pods](#how-to-work-inside-pods)
+  - [How to deploy busybox](#how-to-deploy-busybox)
+  - [How to change specific settings without opening the manifest file](#how-to-change-specific-settings-without-opening-the-manifest-file)
 - [First steps](#first-steps)
   - [Volumes](#volumes)
-  - [How to store data permanently](#how-to-store-data-permanently)
-  - [How to share data in pods with multiple containers](#how-to-share-data-in-pods-with-multiple-containers)
+    - [How to store data permanently](#how-to-store-data-permanently)
+    - [How to share data in pods with multiple containers](#how-to-share-data-in-pods-with-multiple-containers)
   - [How to store confidential data](#how-to-store-confidential-data)
     - [How to create and use secretes](#how-to-create-and-use-secretes)
     - [Shortcomings of secrets](#shortcomings-of-secrets)
@@ -23,11 +25,19 @@
   - [How to group objects together](#how-to-group-objects-together)
     - [Namespaces](#namespaces)
     - [Labels](#labels)
-  - [Restricting ressource usage](#restricting-ressource-usage)
+  - [How to adapt deployment size to current demand](#how-to-adapt-deployment-size-to-current-demand)
+- [Restricting ressource usage](#restricting-ressource-usage)
   - [How to view ressource usage](#how-to-view-ressource-usage)
   - [How to restrict memory usage](#how-to-restrict-memory-usage)
   - [How to restrict cpu usage](#how-to-restrict-cpu-usage)
+- [Network](#network)
+  - [Network policies](#network-policies)
+    - [How to set up ingress](#how-to-set-up-ingress)
+- [Security](#security)
   - [Role-based access control](#role-based-access-control)
+  - [Security policies](#security-policies)
+- [Advanced](#advanced)
+  - [How to create a canary deployment](#how-to-create-a-canary-deployment)
 
 # What is Kubernetes (K8s)
 Kubernetes is a container orchestration tool. It is used to increase availability, scalability and performance of container applications (usually websites). With kubernetes, websites can keep running smoothly even during times of updates, maintenance and high load without the end user noticing a thing. Even all-out server failures can be brushed over with kubernetes.
@@ -125,7 +135,7 @@ kubectl get deployments
 ```
 It should show `hello-deployment` and ind the READY-column it should show `1/1`. That means the pod has been created once, without replicas. Let's delete our pod again (`kubectl delete deployment hello-deployment`) and increase the number of pod replicas, thus creating redundancy:
 ```bash
-kubectl create deployment hello-deployment  --replicas=3
+kubectl create deployment hello-deployment  --replicas=3 --image=nginx
 ```
 Check out the deployments again. Does the ready-column show `3/3` now?
 
@@ -180,6 +190,40 @@ We can use this command to enter the running container's console like this:
 kubectl exec -it hello-pod -- /bin/sh
 ```
 Try to mess around in the file system (try `ls`, `mkdir`, `rm`, etc.) Note that any changes you make will be lost after a restart.
+## How to deploy busybox
+BusyBox is a lightweight and versatile Unix-like toolset that combines several common command-line utilities into a single executable.
+
+We will launch it now to get to know some pitfalls that might trip you up later. So let's create the busybox-pod:
+```bash
+kubectl run busypod --image=busybox
+```
+If we now check out the pods, you will see that `busypod` does not behave as expected. After some creation time it will show the state `COMPLETED` for some time and then `CrashLoopBackOff`. So what is going on?
+
+Well, busybox isn't a perpetual container. It runs some commands and then finishes. That's why we saw the state `COMPLETED`. But then a kubernetes-feature called **restartPolicy** kicks in. Kubernetes assumes, we want the container to be present all the time. But when it completed, it disappeart, so kubernetes tried to restart it for us.
+
+The restartPolicy offers 3 options:
+- always: When the container fails or finishes, it is restarted
+- onFailure: When the container fails, it is restarted. If it finishes, it is not restarted.
+- never: When the container fails or finishes, it just stops
+
+All we need to do is change it to `never` and the error should disappear. You can do this in the manifest file, or directly in the command line:
+```bash
+kubectl run busypod --image=busybox --restart=Never
+```
+Now we should see the status `COMPLETED` with no crash message.
+
+Ok great, we solved it for pods, but what about deployments? They need to make sure a constant number of pods is present all the time, so by definition, their restart policy must be `always`. How can we use busybox in a deployment?
+
+Well, we can still prevent the busybox from exiting by keeping it busy. The easiest way to do this is to make it sleep. This time, we won't be able to do it in the command line. Instead, create a deployment manifest file with the `busybox`-image. Then, edit `spec.template.spec.image` to look like this:
+```yaml
+containers:
+  - image: busybox
+    name: busybox
+    command: [ "sh", "-c", "sleep 10h" ]
+```
+This will keep busybox busy for 10 hours, which should be enough to work with it. If it's not enough, you can increase the time.
+## How to change specific settings without opening the manifest file
+kubectl set
 # First steps
 ## Volumes
 If you a pod to access data outside the pod, you need to use **volumes**. There are several use cases for this which we'll discuss later, but let's have a look at the volume concept first. There are 2 volume categories:
@@ -187,7 +231,7 @@ If you a pod to access data outside the pod, you need to use **volumes**. There 
 - durable: the volume will outlive the pod even in case of a pod crash or restart
 
 There is a plethora of volume types, but each of them will fall in one of the 2 categories. So let's get our hands dirty with some actual use cases:
-## How to store data permanently
+### How to store data permanently
 Storing important data in a pod is unacceptable due to several reasons:
 - if a pod fails, it will be restarted, but all its data will be lost
 - pods are often replicated. If every pods stores different data, the website will be hillariously inconsistent.
@@ -234,7 +278,7 @@ You can check out the mount on the host system as well. In order to enter the ho
 minikube ssh
 ```
 and head over to the mounted directory (in our case `mnt/volume`). Here, you should be able to view your file as well.
-## How to share data in pods with multiple containers
+### How to share data in pods with multiple containers
 If you set up a multi-container pod, you probably want the containers to talk to each other. Otherwise, you could have just put the containers in different pods. So how do we enable inter-container-communication? It's volumes again.
 
 A persistent volume is not suitable for this use case, though. Once the pod fails, there is no use in keeping it. So this time, we will use **EmptyDir** instead of hostPath.
@@ -257,7 +301,6 @@ TODO: for some reason, doublepod container crashes unless one of the pods is ech
 
 And then add an empty-dir-volume to both pods:
 
-Now enter th
 ## How to store confidential data
 Websites and other programs frequently need to handle and store data that should not be viewed by the public. In Kubernetes, this can be achieved with **secrets**.
 ### How to create and use secretes
@@ -270,8 +313,35 @@ Kubernetes is no exception. In big projects, it is not uncommon to have hundrets
 Luckily, kubernetes offers 2 ways to group objects together: **Namespaces** and **labels**.
 ### Namespaces
 ### Labels
+Labels are pretty similar to namespaces, but they exist in form of key-value-pairs and are generally used for project-intern organization. Labels must be unique for every object.
 
-## Restricting ressource usage
+If you created a pod via command line, it will already have a label. The `metadata`-map of the manifest should have a `label`-map containing a key-value pair, e.g. `app: ningx`. You can create new labels of any name and content you like (as long as you don't use special characters). Try, for example to add the label `env: prod` to one of your pods and `env: dev` to another.
+
+Ok, but how do these labels help us in organization? That's where we need to learn about **selectors**. You can easily filter your objects according to the lables they have and their values. Selectors are very powerful, but we will only discuss the simple ones.
+
+You can get all pods containing a certain label like this:
+```bash
+kubectl get pods -l [label]
+```
+Or all the pods where the label equals a specific value:
+
+```bash
+kubectl get pods -l [label]=[value]
+```
+You can select objects based on labels with multiple conditions as well. A comma serves as an `AND`-Operator. Multi-condition-selectors need to be enclosed in quotes like this:
+```bash
+kubectl get pods '[label1], [label2]'
+```
+There is no `OR`-operator, but you can still select objects with different labels, by using **set-based**-selectors. These work with the keywords `in`, `notin` and `exists`. If you want to select labels containing either value1 or value2, you can use
+```bash
+kubectl get pods '[label] in (value1, value2)'
+```
+Or you could invert the statement by chaning `in` to `notin`.
+
+Excersize: List all the pods of a specifc deployment by making use of selectors!
+## How to adapt deployment size to current demand
+kubectl autoscale
+# Restricting ressource usage
 High cpu or memory usage (e.g. due to memory leaks) can be a huge problem for traditonal web servers. If a program keeps allocating more and more cpu time or memory, several problems can occur that can be difficult to spot and hard to solve. You can buy more memory, but even that will get clogged after some time if you're dealing with poorly implemented applications.
 
 Kubernetes offers a way to confine this problem and limit its repercussions: object ressource limits. An object (e.g. a pod) can be limited to a certain amount of memory or cpu usage. This way, the host system will not be affected making the solution process easier and in many cases limiting the scope of the problem to a single pod.
@@ -332,6 +402,21 @@ Of course we can't use the unit `bytes` here. Instead, kubernetes created a new 
       requests:
         cpu: 50m 
 ```
+
+# Network
+## Network policies
+We [already established](#how-to-expose-a-pod) how we can expose a pod to the outside world using services. But there's much more to be considered when using network. We can restrict **ingress** (inbound) and **egress**(outbound) traffic to improve security. In Kubernetes, this is called **isolating** a pod, although traffic is not, as the word `isolating` would imply, cut off from the outside world completely. Only specific connections are forbidden.
+### How to set up ingress
+It does not make sense to set up ingress without a namesspace, so let's create one:
+```bash
+kubectl create namespace hello-ingress
+```
+Now we need to install the ingress controller:
+```bash
+helm upgrade --install ingress-nginx ingress-nginx --repo https://kubernetes.github.io/ingress-nginx --namespace hello-ingress
+```
+TODO: finish
+# Security
 ## Role-based access control
 In order to protect sensitive data and prevent unskilled or malicious developpers from breaking parts of a system, user access should be restricted to only the ressources they need to get their job done, and no more. This is common practise in every area of IT, and kubernetes is no exception. You can use **RBAC** (Role-based access control) to restict user access depending on their role.
 
@@ -340,3 +425,32 @@ RBAC, as the name indicates, uses **roles** to restrict user access. You can def
 - Role: the role will only affect a namespace
 
 Todo: finish this
+## Security policies
+There are a [lot of options](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#securitycontext-v1-core) to improve the security of a container or a pod. Pod security can be configured under `spec.securityContext` while container security is configured under `spec.containers.securityContext` in the manifest file. Container security takes precedence over Pod security.
+
+Let's set the user to `1000` and the group to `3000`:
+```yaml
+securityContext:
+    runAsUser: 1000
+    runAsGroup: 3000
+```
+And in the container security, we could block priviledge escalation (i.e. prevent child processes from gaining more privileges than its parent process):
+```yaml
+securityContext:
+  allowPrivilegeEscalation: false
+```
+If you now `exec` into the container and try to make any changes, you will be denied, since you're not root. Running `id` should return something like
+```sh
+uid=1000 gid=3000 groups=3000
+```
+# Advanced
+## How to create a canary deployment
+Testing a software 100% is impossible. We have to expect some bugs even in well-tested applications. But bugs hurt the user experience. Kubernetes offers a way to test applications in production context while still reducing the impact of software bugs in new versions: **canary** deployments.
+
+We are not talking about a kubernetes features, but a way to make use of the flexibility and agility of kubernetes. So how do canary deployments work? Well, we leave the old software deployment up and running but add another one with the new software version. Then we make the service route only a small percentage to the new software while routing the rest to the old one.
+
+That way, most users won't be affected by the change, but we can still test it in production context and - hopefully - get some bug reports we can fix before updating the whole system.
+
+Routing too many users to the old system will result in more bugs not being discorered. Routing too many to the new system will increase the impact of a bad customer experience for more users than necessary.
+
+Ok, enough theory. How do we actually implement a canary?
