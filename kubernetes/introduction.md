@@ -14,6 +14,7 @@
   - [How to work inside pods](#how-to-work-inside-pods)
   - [How to deploy busybox](#how-to-deploy-busybox)
   - [How to change specific settings without opening the manifest file](#how-to-change-specific-settings-without-opening-the-manifest-file)
+  - [How to sort objects from kubectl get](#how-to-sort-objects-from-kubectl-get)
 - [First steps](#first-steps)
   - [Volumes](#volumes)
     - [How to store data permanently](#how-to-store-data-permanently)
@@ -36,6 +37,9 @@
 - [Security](#security)
   - [Role-based access control](#role-based-access-control)
   - [Security policies](#security-policies)
+  - [How to schedule a command](#how-to-schedule-a-command)
+    - [Jobs](#jobs)
+  - [Cronjobs](#cronjobs)
 - [Advanced](#advanced)
   - [How to create a canary deployment](#how-to-create-a-canary-deployment)
 
@@ -199,7 +203,9 @@ kubectl run busypod --image=busybox
 ```
 If we now check out the pods, you will see that `busypod` does not behave as expected. After some creation time it will show the state `COMPLETED` for some time and then `CrashLoopBackOff`. So what is going on?
 
-Well, busybox isn't a perpetual container. It runs some commands and then finishes. That's why we saw the state `COMPLETED`. But then a kubernetes-feature called **restartPolicy** kicks in. Kubernetes assumes, we want the container to be present all the time. But when it completed, it disappeart, so kubernetes tried to restart it for us.
+Well, `nginx` was a somewhat special container. Since it's a web server, it will run forever unless it's stopped. But busybox is finite. It runs some commands and then finishes. That's why we saw the state `COMPLETED`.
+
+Ok, but why did we see an error? Well, after it was completet, a kubernetes-feature called **restartPolicy** kicks in. Kubernetes assumes we want the container to be present all the time. When the container completes and disappears, kubernetes makes it reappear.
 
 The restartPolicy offers 3 options:
 - always: When the container fails or finishes, it is restarted
@@ -224,6 +230,18 @@ containers:
 This will keep busybox busy for 10 hours, which should be enough to work with it. If it's not enough, you can increase the time.
 ## How to change specific settings without opening the manifest file
 kubectl set
+## How to sort objects from kubectl get
+Let's say you want to sort your pods by their creation time. How would we do that?
+
+Well, `kubectl get` offers the `--sort-by` flag to do that:
+```bash
+kubectl get pods --sort-by=STATUS
+```
+Ok that didn't work. Why? Well, you can't sort by one of the columns. Instead, you need to sort by the contents of the manifest file. And it so happens to contain the field `creationTimestamp` in its `metadata`-map. To make the sorting work, need to specify the yaml-path to the timestamp:
+```bash
+kubectl get pods --sort-by=.metadata.creationTimestamp
+```
+This should now work.
 # First steps
 ## Volumes
 If you a pod to access data outside the pod, you need to use **volumes**. There are several use cases for this which we'll discuss later, but let's have a look at the volume concept first. There are 2 volume categories:
@@ -443,6 +461,59 @@ If you now `exec` into the container and try to make any changes, you will be de
 ```sh
 uid=1000 gid=3000 groups=3000
 ```
+## How to schedule a command
+You might want a command to be run regularly. Let's say we want to create a pod every 5 seconds. How would we do that? Well, **cronjobs** have been written for this exact purpose. But in order to understand them, we must take a detour first and talk about **jobs**:
+### Jobs
+Let's say you need a certain number of pods to finish sucessfully. How do you do that? You could, of course, just launch them manually and keep track of their success, but the more completions you need, the more tedious this task will be.
+
+Fortunately, jobs offer that very functionality. They keep track of sucessful completions and are considered "finished" when the specified number of completions is reached. Failures are not counted.
+
+A pod manifest starting `busybox` 3 times could look like this:
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: three-busyboxes
+spec:
+  completions: 3
+  template:
+    spec:
+      containers:
+      - name: busy
+        image: busybox 
+      restartPolicy: Never
+```
+So what we got here? Well, apart from the usual boilerplate, we need `spec.template` where we insert the manifest of the pod we like to see created. The `spec.completions`-setting defines the number of completions necessary for the job.
+
+Create the job and then watch the pods getting created and then completing by running `kubectl get pods -l job-name=three-busyboxes` repeatedly (or by watching them in the dashboard).
+
+After some time, the output should look something like this (with different IDs and ages, of course):
+```
+NAME                    READY   STATUS      RESTARTS   AGE
+three-busyboxes-84sbh   0/1     Completed   0          74s
+three-busyboxes-bfbkn   0/1     Completed   0          80s
+three-busyboxes-l6t9k   0/1     Completed   0          68s
+```
+## Cronjobs
+Jobs can be schedules by using cronjobs. These are kubernetes objects that are scheduled in the same way linux cronjobs are (if you don't know how that works, look [here](https://en.wikipedia.org/wiki/Cron)).
+
+Just like every other kubernetes object, they too need a manifest file. The cronjob manifest contains the schedule and a job template. As an example, let's look at a cronjob that starts `busybox` once every minute:
+```yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: hello-cronjob
+spec:
+  schedule: "* * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: busy
+            image: busybox
+```
+So let's have a quick repetition: A cronjob manifest consists of a `schedule` and a `job`. A `job` consists of a `completions`-setting and a `pod`. A `pod` consist of a `restart-policy` and a container. Anad a container is no kubernetes object, so we don't care what it consists of. This was, of course, grossly oversimplified.
 # Advanced
 ## How to create a canary deployment
 Testing a software 100% is impossible. We have to expect some bugs even in well-tested applications. But bugs hurt the user experience. Kubernetes offers a way to test applications in production context while still reducing the impact of software bugs in new versions: **canary** deployments.
