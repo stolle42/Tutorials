@@ -40,8 +40,10 @@
   - [How to schedule a command](#how-to-schedule-a-command)
     - [Jobs](#jobs)
   - [Cronjobs](#cronjobs)
+  - [How to reuse and recreate a cluster (Helm)](#how-to-reuse-and-recreate-a-cluster-helm)
 - [Advanced](#advanced)
   - [How to create a canary deployment](#how-to-create-a-canary-deployment)
+  - [How to create a helm chart](#how-to-create-a-helm-chart)
 
 # What is Kubernetes (K8s)
 Kubernetes is a container orchestration tool. It is used to increase availability, scalability and performance of container applications (usually websites). With kubernetes, websites can keep running smoothly even during times of updates, maintenance and high load without the end user noticing a thing. Even all-out server failures can be brushed over with kubernetes.
@@ -514,6 +516,11 @@ spec:
             image: busybox
 ```
 So let's have a quick repetition: A cronjob manifest consists of a `schedule` and a `job`. A `job` consists of a `completions`-setting and a `pod`. A `pod` consist of a `restart-policy` and a container. Anad a container is no kubernetes object, so we don't care what it consists of. This was, of course, grossly oversimplified.
+## How to reuse and recreate a cluster (Helm)
+If you have a cluster that's working well, you might get ideas of backing it up or even shipping it to another machine and reusing it. So how do we do that? We could, of course, create a script that runs all the commands necessary to set up the cluster. But creating and maintaining that script will be a lot of work. Is there a better way?
+
+Of course there is. The tool we need to use is called **helm**. (What's a steerman without a helm?) With helm, you can create **charts** that allow you to easily ship, backup and recreate your old cluster. Actually, you don't normally handle your whole cluster. You could, but it is much better to divide your cluster into different packages (think of them as kubernetes libraries), so depending on the application you can reuse some of them. 
+
 # Advanced
 ## How to create a canary deployment
 Testing a software 100% is impossible. We have to expect some bugs even in well-tested applications. But bugs hurt the user experience. Kubernetes offers a way to test applications in production context while still reducing the impact of software bugs in new versions: **canary** deployments.
@@ -525,3 +532,41 @@ That way, most users won't be affected by the change, but we can still test it i
 Routing too many users to the old system will result in more bugs not being discorered. Routing too many to the new system will increase the impact of a bad customer experience for more users than necessary.
 
 Ok, enough theory. How do we actually implement a canary?
+
+## How to create a helm chart
+You can create a new, empty helm chart by running
+```bash
+helm create hello-chart
+```
+This should create a folder called `hello-chart`. It contains a  folder called `templates`, which will be very useful once we understand how helm works. But since we haven't learned it yet, we now delete all the contents of `templates` and create our own template instead.
+
+How do we create a template? Well for starters, all we need to do is to save a manifest-file in the template folder.
+
+So let's get our hands dirty. Save a pod manifest in the `templates` folder, then create your first chart by running
+```bash
+helm install chart-name hello-chart
+```
+where `chart-name` is replacable by any ascii-string you like.
+
+Let's check if it worked. First, you can print out the manifests of all chart ressources by running
+```bash
+helm get manifest chart-name
+```
+Does it show your pod manifest? Then you can check if the required pod was created. Does `kubectl get pods` show the new pod from the chart?
+
+You can remove the pod again by running
+```bash
+helm uninstall chart-name
+```
+Ok great, we can collect different objects in a certain location and install or uninstall them simultanously. That somewhat simplifies our work, but is that all helm can do? No, there's much more. Templates are called that for a reason. You can name your pod after the chart name like this:
+```yaml
+metadata:
+  name: {{.Release.Name}}-pod
+```
+Installing the helm chart now should create a pod named `chart-name-pod`. Ok but what is that weird `.Release.Name`? Well, that brings us to helm **objects**.
+
+Objects are mostly data maps you can use to get certain information. They can contain other objects and even functions, but in most cases, they are just used in templates for fetching data. `Release` is one of the objects accessible to templates and contains data fields like `Name`, `NAMESPACE`, `Revision` and many more. You can view them by running
+```bash
+helm status chart-name
+```
+There are other objects, too, like `Values`, `Files` or `Capabilities`. 
