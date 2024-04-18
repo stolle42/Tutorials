@@ -8,9 +8,10 @@
   - [How to expose a pod](#how-to-expose-a-pod)
   - [How to create a deployment](#how-to-create-a-deployment)
 - [Kubectl tricks](#kubectl-tricks)
+  - [Ressource overview](#ressource-overview)
   - [How to edit an existing ressource](#how-to-edit-an-existing-ressource)
-  - [How to preview an object before creating it](#how-to-preview-an-object-before-creating-it)
-  - [How to create an object from manifest](#how-to-create-an-object-from-manifest)
+  - [How to preview an ressource before creating it](#how-to-preview-an-ressource-before-creating-it)
+  - [How to create a ressource from manifest](#how-to-create-a-ressource-from-manifest)
   - [How to work inside pods](#how-to-work-inside-pods)
   - [How to deploy busybox](#how-to-deploy-busybox)
   - [How to change specific settings without opening the manifest file](#how-to-change-specific-settings-without-opening-the-manifest-file)
@@ -44,6 +45,11 @@
 - [Advanced](#advanced)
   - [How to create a canary deployment](#how-to-create-a-canary-deployment)
   - [How to create a helm chart](#how-to-create-a-helm-chart)
+  - [Service accounts](#service-accounts)
+  - [Automated container monitoring using probes](#automated-container-monitoring-using-probes)
+    - [Liveness probes](#liveness-probes)
+    - [Startup probes](#startup-probes)
+    - [Readyness probes](#readyness-probes)
 
 # What is Kubernetes (K8s)
 Kubernetes is a container orchestration tool. It is used to increase availability, scalability and performance of container applications (usually websites). With kubernetes, websites can keep running smoothly even during times of updates, maintenance and high load without the end user noticing a thing. Even all-out server failures can be brushed over with kubernetes.
@@ -57,6 +63,8 @@ Install:
 - docker
 # Architecture
 The entire kubernetes entity is called **cluster**. Each cluster consists of several **nodes** that might run on seperate machines. Each node consists of several **pods**. A pod is the smallest ressource in kubernetes and it consists of one or more Docker-containers (but ususally one).
+
+Nodes and pods are essential for running an application, but kubernetes offers multiple other helpful tools for managing, exposing and securing our application. In Kubernetes, these tools are called **ressources**
 # Hello World
 ## How to set up minikube
 In this tutorial, we will use **minikube**, a lightweight open-source version of kubernetes missing some features. The command
@@ -151,24 +159,30 @@ Now check out the pods again. You should still see 3 pods of the form `hello-dep
 
 That is the actual power of kubernetes. No matter what happens to the pod, the deployment will always be there and spawn a new one. This cannot be achieved with a simple tool like Docker. And you don't want to write time-consuming, error-prone script for this, do you? Especially once you learn that Kubernetes has many more features making our lives easier ready to explore.
 # Kubectl tricks
-Kubectl offers several features that simplify your work. Don't skip them, you won't understand the following topics if you do:
+Kubectl offers several features that simplify your work. Don't skip them, or you won't understand the following topics if you do.
+## Ressource overview
+We already got to know 4 kubernetes ressources: Nodes, pods, deployments and services. There a many more. You can list all the ressources by running
+```sh
+kubectl api-resources
+```
+Think of them as your toolbox. We will get to know the most important ones of the ressources during this tutorial.
 ## How to edit an existing ressource
 You might have noticed that every time we wanted to change some settings in a ressource (e.g. a pod), we had to delete it and relaunch it with new settings. This is not only tedious, but unaccaptable in a production context. There is a better way: If you want to change settings, run
 ```bash
 kubectl edit [ressource]
 ```
-This will open a yaml-configuration file in vim (also called object **manifest**). Here, you can edit a plethora of settings that might seem intimidating at first. But don't worry, we'll get there.
+This will open a yaml-configuration file in vim (also called ressource **manifest**). Here, you can edit a plethora of settings that might seem intimidating at first. But don't worry, we'll get there.
 
 Some of the settings might already seem familiar. Can you spot the `replicas`-setting in the deployment configuration? Try to change the number. Now close the file. Kubernetes should apply the new settings automatically. Check if it worked. Does `kubectl get deployments` show another number of replicas now?
-## How to preview an object before creating it
-What if we want to check if one of our commands has the right syntax without actually creating an object? Well, there is a flag for that: `dry-run=client`.
+## How to preview an ressource before creating it
+What if we want to check if one of our commands has the right syntax without actually creating a ressource? Well, there is a flag for that: `dry-run=client`.
 
-This is more useful when paired with the object preview flag: `-o yaml`(change yaml to json if you prefer that). Try to get a grasp of it by running
+This is more useful when paired with the preview flag: `-o yaml`(change yaml to json if you prefer that). Try to get a grasp of it by running
 ```bash
 kubectl run pod hello-pod --dry-run=client --image=nginx -o yaml
 ```
 This command should not affact your cluster in any way.
-## How to create an object from manifest
+## How to create a ressource from manifest
 Working with manifest files might not seem appealing at first, but believe me - you'll have to learn it eventually. So in order to get a bit more used to them, well create an entirely new pod just from a manifest file. Create a file called `manifest.yaml` with the following contents:
 ```yaml
 apiVersion: v1
@@ -330,8 +344,35 @@ Websites and other programs frequently need to handle and store data that should
 Just like in every other field of computer science (and in life), a high number of certain objects make it harder for the user to keep an overview and find single objects. That's why we group files together in folders, or code in classes and functions. Organization just makes our lives easier.
 
 Kubernetes is no exception. In big projects, it is not uncommon to have hundrets of pods, deployments, services etc. And worse yet - several projects might have to share the same cluster to reduce cost. Obviously, managing a cluster like that with no grouping would be vastly chaotic.
-Luckily, kubernetes offers 2 ways to group objects together: **Namespaces** and **labels**.
+
+Thankfully, kubernetes offers 2 ways to group objects together: **Namespaces** and **labels**.
 ### Namespaces
+Ressources like pods, deployments and services need to be namespaced. This is by design. But wait - we created pods already without namespacing them, didn't we? Well, if we don't provide a namespace, kubernetes will automatically put them into the namespace called `default`. You can get all namespaces from your cluster by running
+```sh
+kubectl get namespaces 
+```
+This should return something like
+```
+NAME                   STATUS   AGE
+default                Active   1d
+[some other namespaces we don't care about]
+```
+Only one namespace is not helping us to organize, obviously. So let's create a second one. Let's say we want to group all tests together in a namespace, so we run
+```sh
+kubectl create namespace testing
+```
+Now that we have several namespaces, we need to be careful with our commands. By default, every command is run in the `default`-namespace (hence the name), but if we want a command to be run in another namespace, we need to use the `--namespace`-flag. Let's say we want to list all pods in the `testing`-namespace. How would we do that?
+```sh
+kubectl get pods --namespace=testing
+```
+Since we haven't created anything yet in `testing`, it should return
+```sh
+No resources found in testing namespace.
+```
+If you want your commands to run in a certain namespace by default, you can run
+```sh
+kubectl config set-context --current --namespace=testing
+```
 ### Labels
 Labels are pretty similar to namespaces, but they exist in form of key-value-pairs and are generally used for project-intern organization. Labels must be unique for every object.
 
@@ -364,7 +405,7 @@ kubectl autoscale
 # Restricting ressource usage
 High cpu or memory usage (e.g. due to memory leaks) can be a huge problem for traditonal web servers. If a program keeps allocating more and more cpu time or memory, several problems can occur that can be difficult to spot and hard to solve. You can buy more memory, but even that will get clogged after some time if you're dealing with poorly implemented applications.
 
-Kubernetes offers a way to confine this problem and limit its repercussions: object ressource limits. An object (e.g. a pod) can be limited to a certain amount of memory or cpu usage. This way, the host system will not be affected making the solution process easier and in many cases limiting the scope of the problem to a single pod.
+Kubernetes offers a way to confine this problem and limit its repercussions: object ressource limits. a ressource (e.g. a pod) can be limited to a certain amount of memory or cpu usage. This way, the host system will not be affected making the solution process easier and in many cases limiting the scope of the problem to a single pod.
 ## How to view ressource usage
 First, we need to install the `metrics-server`. In minikube, this can be done easily:
 ```bash
@@ -497,9 +538,9 @@ three-busyboxes-bfbkn   0/1     Completed   0          80s
 three-busyboxes-l6t9k   0/1     Completed   0          68s
 ```
 ## Cronjobs
-Jobs can be schedules by using cronjobs. These are kubernetes objects that are scheduled in the same way linux cronjobs are (if you don't know how that works, look [here](https://en.wikipedia.org/wiki/Cron)).
+Jobs can be schedules by using cronjobs. These are kubernetes ressources that are scheduled in the same way linux cronjobs are (if you don't know how that works, look [here](https://en.wikipedia.org/wiki/Cron)).
 
-Just like every other kubernetes object, they too need a manifest file. The cronjob manifest contains the schedule and a job template. As an example, let's look at a cronjob that starts `busybox` once every minute:
+Just like every other kubernetes ressource, they too need a manifest file. The cronjob manifest contains the schedule and a job template. As an example, let's look at a cronjob that starts `busybox` once every minute:
 ```yaml
 apiVersion: batch/v1
 kind: CronJob
@@ -515,7 +556,7 @@ spec:
           - name: busy
             image: busybox
 ```
-So let's have a quick repetition: A cronjob manifest consists of a `schedule` and a `job`. A `job` consists of a `completions`-setting and a `pod`. A `pod` consist of a `restart-policy` and a container. Anad a container is no kubernetes object, so we don't care what it consists of. This was, of course, grossly oversimplified.
+So let's have a quick repetition: A cronjob manifest consists of a `schedule` and a `job`. A `job` consists of a `completions`-setting and a `pod`. A `pod` consist of a `restart-policy` and a container. Anad a container is no kubernetes ressource, so we don't care what it consists of. This was, of course, grossly oversimplified.
 ## How to reuse and recreate a cluster (Helm)
 If you have a cluster that's working well, you might get ideas of backing it up or even shipping it to another machine and reusing it. So how do we do that? We could, of course, create a script that runs all the commands necessary to set up the cluster. But creating and maintaining that script will be a lot of work. Is there a better way?
 
@@ -548,7 +589,13 @@ helm install chart-name hello-chart
 ```
 where `chart-name` is replacable by any ascii-string you like.
 
-Let's check if it worked. First, you can print out the manifests of all chart ressources by running
+Let's check if it worked. First, let's check if the chart exists in our namespace:
+```sh
+helm list
+```
+It should show `hellochart`.
+
+Secondly, you can print out the manifests of all chart ressources by running
 ```bash
 helm get manifest chart-name
 ```
@@ -558,7 +605,7 @@ You can remove the pod again by running
 ```bash
 helm uninstall chart-name
 ```
-Ok great, we can collect different objects in a certain location and install or uninstall them simultanously. That somewhat simplifies our work, but is that all helm can do? No, there's much more. Templates are called that for a reason. You can name your pod after the chart name like this:
+Ok great, we can collect different ressources in a certain location and install or uninstall them simultanously. That somewhat simplifies our work, but is that all helm can do? No, there's much more. Templates are called that for a reason. You can name your pod after the chart name like this:
 ```yaml
 metadata:
   name: {{.Release.Name}}-pod
@@ -570,3 +617,68 @@ Objects are mostly data maps you can use to get certain information. They can co
 helm status chart-name
 ```
 There are other objects, too, like `Values`, `Files` or `Capabilities`. 
+## Service accounts
+We already learned how we can use `RBAC` to create a role-based authentication system. Non-human entities like a deployment can get accounts too. These are called **serviceAccounts**. You unwittingly have created serviceAccounts already. Run 
+```sh
+kubectl get serviceaccounts
+```
+and you'll see them. You might already have noticed that they have the same name like your namespaces. That is not a coincidence: every time a namespace is created, a serviceAccount is created along with it. There cannot be a namespace without a service account. If you try to delete it, it will be replaced by a new one. Automatically created serviceAccounts have the least possible permissions initially.
+
+You can create a new service account by running
+```sh
+kubectl create serviceaccount hello-account
+```
+## Automated container monitoring using probes
+Kubernetes offers mechanisms to determine the health and status of a running container. These are called **probes** and can help a great deal in reducing error impact.
+
+Probes are **not** ressources, but settings you can integrate in ressources like pods. There's 3 different types of probes:
+### Liveness probes
+Applications can quickly get deadlocked and therefore deny service. It's a common problem in monolithic web servers, and it probably won't suprise you to learn that kubernetes has a solution for that, too. It's called **liveness probe**.
+
+It works by monitoring a part of the container, e.g. an http-endpoint for availability. If the endpoint is not available a specified number of times, the pod is killed (and normally replaced). Setting the threshold too low can lead to unnessessary container kills, but setting it too high will increase the probe's response time.
+
+Developpers don't necessarily need to write applications in a way that runs forever, which can ease their work.
+
+Ok enough theory. Let's create a liveness probe!
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: hello-probes
+spec:
+  containers:
+  - name: busy
+    image: busybox
+    args:
+      - /bin/sh
+      - -c
+      - touch /tmp/healthy; sleep 20; rm -f /tmp/healthy; sleep 100
+    livenessProbe:
+      exec:
+        command:
+        - cat
+        - /tmp/healthy
+      initialDelaySeconds: 2
+      periodSeconds: 4
+```
+The probe runs every 4 seconds and checks if the file `tmp/healthy` is still there. We deliberately ran a command in the container making that file disappear after 20 seconds. So after 20 seconds, the probe will fail and cause the pod to be restarted.
+
+Watch the pod failing and getting restarted again and again in `kubectl get pods` or `kubect describe pod`. Find out, how many probe failures will cause a restart? Spoiler alert: It's 3. You can change it to x times by adding `failureThreshold: x` to the probe.
+
+Ok, but I promised we will do it by watching endpoints, not by watching a file. Ok fine. Let's watch endpoints:
+
+TODO: find out if nginx can be configured to change return code after some time
+
+Liveness probes are a great tool. But they can be very harmful when not used correctly. So the designers of kubenretes decided to introduce 2 more probes to mitigate the problems caused by liveness probes:
+### Startup probes
+You may have noticed the liveness probe contained an option called `initialDelaySeconds`. This was introduced to prevent the probe from failing at startup. Usually, containers take some time to be up and running, and we don't want the probe to kill the container at startup, leading to an endless restarting loop. That's why we have `initialDelaySeconds`. Set it to your container's startup time, and the restarting loop is prevented.
+
+Ok, but what if we don't know the container's startup time? What if our container might start instantly, but might also take several minutes to start? We don't want an extremely high initial delay, we want the probe to be active as long as possible. So what do we do?
+
+Well, that's where **startup probes** save us. They monitor the startup process in regular intervals. The liveness probe won't run as long as the startup probe is still there. Once  the startup is finished, it hand the baton over to the liveness probe. If the startup probe takes longer than a specified time, the probe fails and the container is restarted.
+
+Todo: add example
+### Readyness probes
+Liveness probes can be dangerous. A container might appear to be hung up but, in reality, just have a lot on its hand. The liveness probe, though, doesn't know this and might decide to kill the container. This would be a disaster. So be careful when writing liveness probes - they should trigger in cases of real hang-ups, but not in the case of a high load.
+
+However, we should do something about the high load. We should stop sending requests to it and wait until it finished (or at least reduced) its stack. Thats where **Readyness probes** help us out. They work exactely the same like liveness probes and they have the same syntax, but when triggered, they shut the container out from any traffic until the probe finds the high load reduced again.
