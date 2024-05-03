@@ -11,15 +11,14 @@
   - [How to schedule a command](#how-to-schedule-a-command)
     - [Jobs](#jobs)
   - [Cronjobs](#cronjobs)
-  - [How to reuse and recreate a cluster (Helm)](#how-to-reuse-and-recreate-a-cluster-helm)
-- [Advanced](#advanced)
-  - [How to create a canary deployment](#how-to-create-a-canary-deployment)
-  - [How to create a helm chart](#how-to-create-a-helm-chart)
-  - [Service accounts](#service-accounts)
-  - [Automated container monitoring using probes](#automated-container-monitoring-using-probes)
-    - [Liveness probes](#liveness-probes)
-    - [Startup probes](#startup-probes)
-    - [Readyness probes](#readyness-probes)
+- [How to reuse and recreate a cluster (Helm)](#how-to-reuse-and-recreate-a-cluster-helm)
+  - [How to create helm charts](#how-to-create-helm-charts)
+- [Service accounts](#service-accounts)
+- [Automated container monitoring using probes](#automated-container-monitoring-using-probes)
+  - [Liveness probes](#liveness-probes)
+  - [Startup probes](#startup-probes)
+  - [Readyness probes](#readyness-probes)
+- [How to create a canary deployment](#how-to-create-a-canary-deployment)
 
 # Restricting ressource usage
 High cpu or memory usage (e.g. due to memory leaks) can be a huge problem for traditonal web servers. If a program keeps allocating more and more cpu time or memory, several problems can occur that can be difficult to spot and hard to solve. You can buy more memory, but even that will get clogged after some time if you're dealing with poorly implemented applications.
@@ -69,7 +68,7 @@ Look for the `spec.templates.spec.containers[].resources`-map. If you haven't ed
 ```
 Have a look into the pod settings. Did they get updated?
 
-You can try to occupy enough memory now to push the container to its limits, but be warned: the pod filesystem is rather confusing and won't be part of this introduction.
+You can try to occupy enough memory now to push the container to its limits, but be warned: the pod filesystem is rather confusing and won't be part of this tutorial.
 ## How to restrict cpu usage
 You can restrict cpu usage, too. It works about the same way like restricting memory usage:
 - requests: CPU reservation. Unlike memory requests, exceeding cpu requests won't risk the pod to be killed
@@ -301,3 +300,7 @@ That way, most users won't be affected by the change, but we can still test it i
 Routing too many users to the old system will result in more bugs not being discorered. Routing too many to the new system will increase the impact of a bad customer experience for more users than necessary.
 
 Ok, enough theory. How do we actually implement a canary?
+
+**Todo:** Read this and do all examples: https://kubernetes.io/docs/concepts/cluster-administration/logging
+
+Understand Rolling Update Deployment including maxSurge and maxUnavailable

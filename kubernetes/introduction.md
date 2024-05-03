@@ -20,6 +20,8 @@
   - [Volumes](#volumes)
     - [How to store data permanently](#how-to-store-data-permanently)
     - [How to share data in pods with multiple containers](#how-to-share-data-in-pods-with-multiple-containers)
+  - [Persistent volumes (PVs)](#persistent-volumes-pvs)
+  - [Persistent volume claims (PVCs)](#persistent-volume-claims-pvcs)
   - [How to store confidential data](#how-to-store-confidential-data)
     - [How to create and use secretes](#how-to-create-and-use-secretes)
     - [Shortcomings of secrets](#shortcomings-of-secrets)
@@ -307,6 +309,9 @@ spec:
 TODO: for some reason, doublepod container crashes unless one of the pods is echo-server. But echo-server is unsuitable because it can't run any linux commands. Try to find debugging methods that could help tracking down that problem, since now we're completely in the dark.
 
 And then add an empty-dir-volume to both pods:
+## Persistent volumes (PVs)
+
+## Persistent volume claims (PVCs)
 
 ## How to store confidential data
 Websites and other programs frequently need to handle and store data that should not be viewed by the public. In Kubernetes, this can be achieved with **secrets**.
