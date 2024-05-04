@@ -20,8 +20,8 @@
   - [Volumes](#volumes)
     - [How to store data permanently](#how-to-store-data-permanently)
     - [How to share data in pods with multiple containers](#how-to-share-data-in-pods-with-multiple-containers)
-  - [Persistent volumes (PVs)](#persistent-volumes-pvs)
-  - [Persistent volume claims (PVCs)](#persistent-volume-claims-pvcs)
+    - [Persistent volumes (PVs)](#persistent-volumes-pvs)
+    - [Persistent volume claims (PVCs)](#persistent-volume-claims-pvcs)
   - [How to store confidential data](#how-to-store-confidential-data)
     - [How to create and use secretes](#how-to-create-and-use-secretes)
     - [Shortcomings of secrets](#shortcomings-of-secrets)
@@ -240,7 +240,7 @@ kubectl get pods --sort-by=.metadata.creationTimestamp
 This should now work.
 # First steps
 ## Volumes
-If you a pod to access data outside the pod, you need to use **volumes**. There are several use cases for this which we'll discuss later, but let's have a look at the volume concept first. There are 2 volume categories:
+If a pod needs to access data outside the pod, you need to use **volumes**. There are several use cases for this which we'll discuss later, but let's have a look at the volume concept first. There are 2 volume categories:
 - ephemeral: the volume's lifetime is equal to the pod lifetime and gets destroyed in case of a pod failure or restart
 - durable: the volume will outlive the pod even in case of a pod crash or restart
 
@@ -280,7 +280,7 @@ spec:
 ```
 Note that this will only work if the pod `hello-pod` does not exist yet. Seriouly, just create deployments. Why are we still creating pods directly?
 
-Anyway, create the pod and enter its filesystem (`kubectl exec -it -- /bin/bash`). Change to the mounted directory (in our case `app`) and create a file called "hello.txt". Now destroy the pod, create it again and check the mounted directory. Is the file still there? Is its content still the same? All changes from every other directory should be gone, but those in `app` should still be there.
+Anyway, create the pod and enter its filesystem (`kubectl exec -it -- /bin/bash`). Change to the mounted directory (in our case `app`) and create a file called "hello.txt". Now destroy the pod, create it again and check the mounted directory. Is the file still there? Is its content still the same? If you made changes in any other directory, they should be gone, but those in `app` should still be there.
 
 You can check out the mount on the host system as well. In order to enter the host, run
 ```bash
@@ -288,30 +288,57 @@ minikube ssh
 ```
 and head over to the mounted directory (in our case `mnt/volume`). Here, you should be able to view your file as well.
 ### How to share data in pods with multiple containers
-If you set up a multi-container pod, you probably want the containers to talk to each other. Otherwise, you could have just put the containers in different pods. So how do we enable inter-container-communication? It's volumes again.
+If you set up a multi-container pod, you probably want the containers to talk to each other. Otherwise, you could have just put the containers in different pods, right? So how do we enable inter-container-communication? It's volumes again.
 
-A persistent volume is not suitable for this use case, though. Once the pod fails, there is no use in keeping it. So this time, we will use **EmptyDir** instead of hostPath.
+A persistent volume is not suitable for this use case, though. Once the pod fails, it just uses up ressources with no benefit. So this time, we will use an ephemeral volume called **EmptyDir** instead of hostPath.
 
 So let's create a double-container-pod:
 ```yaml
 apiVersion: v1
 kind: Pod
 metadata:
-  name: nginx-debian
+  name: doublebox
 spec:
   containers:
-  - image: nginx
-    name: nginx-container
-  - image: debian
-    name: debian-container
+  - image: busybox
+    name: box1
+    command: [ "sh", "-c", "sleep 10h" ]
+  - image: busybox
+    name: box2
+    command: [ "sh", "-c", "sleep 10h" ]
   restartPolicy: Always
 ```
-TODO: for some reason, doublepod container crashes unless one of the pods is echo-server. But echo-server is unsuitable because it can't run any linux commands. Try to find debugging methods that could help tracking down that problem, since now we're completely in the dark.
-
 And then add an empty-dir-volume to both pods:
-## Persistent volumes (PVs)
-
-## Persistent volume claims (PVCs)
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: doublebox
+spec:
+  containers:
+  - image: busybox
+    name: box1
+    command: [ "sh", "-c", "sleep 10h" ]
+    volumeMounts:
+    - mountPath: /mnt/shared
+      name: shared-storage
+  - image: busybox
+    name: box2
+    command: [ "sh", "-c", "sleep 10h" ]
+    volumeMounts:
+    - mountPath: /mnt/shared
+      name: shared-storage
+  restartPolicy: Always
+  volumes:
+  - name: shared-storage
+    emptyDir:
+      sizeLimit: 500Mi
+```
+Now exec into one container. We should specify which one:
+```sh
+kubectl exec -it doublebox --container=box1 -- /bin/sh
+```
+Create a file at `mnt/shared/`, then exec into `box2` and look at its mounted path. Were you sucessful in sharing data?
 
 ## How to store confidential data
 Websites and other programs frequently need to handle and store data that should not be viewed by the public. In Kubernetes, this can be achieved with **secrets**.

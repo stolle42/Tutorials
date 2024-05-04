@@ -19,6 +19,7 @@
   - [Startup probes](#startup-probes)
   - [Readyness probes](#readyness-probes)
 - [How to create a canary deployment](#how-to-create-a-canary-deployment)
+- [Persistent volumes](#persistent-volumes)
 
 # Restricting ressource usage
 High cpu or memory usage (e.g. due to memory leaks) can be a huge problem for traditonal web servers. If a program keeps allocating more and more cpu time or memory, several problems can occur that can be difficult to spot and hard to solve. You can buy more memory, but even that will get clogged after some time if you're dealing with poorly implemented applications.
@@ -304,3 +305,19 @@ Ok, enough theory. How do we actually implement a canary?
 **Todo:** Read this and do all examples: https://kubernetes.io/docs/concepts/cluster-administration/logging
 
 Understand Rolling Update Deployment including maxSurge and maxUnavailable
+# Persistent volumes
+We already learned about emptyDir and hostPath volumes. There is one more  volume type that needs to be discussed: The **Persistent Volume (PV)**. They are much more advanced than the other types, offering more features but are more involved to set up as well.
+
+PVs are a kubernetes representation of a storage an admin has set up for us. After all, we don't want to be bothered with the implemenation details of storage. PVs are a nice wrapper for that.
+
+In order to actually access a PV, we need a **Persistent volume claim (PVC)**. 
+
+There are 2 ways a PVC can be created:
+- static: This is the easier way: If a PV matching the PVC has been created already, we don't need to create one. It just uses the already existing one.
+- dynamic: If none of the current PVs match the PVC, a new one can be created. In order for this to work, a **storage class** must have been created matching the storage class of the PVC. Dynamic storage provisioning must be enabled like this: Todo
+
+If both static and dynamic provisioning don't work, the claim will remain in pending state until a matching volume is created.
+
+If sucessful, the PVC can be mounted like any other volume into your pod.
+
+One of the nice features of PVs is that they offer **Use protection**. That means you cannot delete a PV still used by a PVC, and you cannot delete a PVC still mounted by a pod. If you try to delete it, kubernetes will remember your wish an honour it as soon as the pod stops using the PVC. You could think of it as a *pending delete*-state (Kubernetes will call the state `Terminating`).
