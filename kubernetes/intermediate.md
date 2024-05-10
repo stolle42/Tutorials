@@ -20,6 +20,7 @@
   - [Readyness probes](#readyness-probes)
 - [How to create a canary deployment](#how-to-create-a-canary-deployment)
 - [Persistent volumes](#persistent-volumes)
+  - [Storage classes](#storage-classes)
 
 # Restricting ressource usage
 High cpu or memory usage (e.g. due to memory leaks) can be a huge problem for traditonal web servers. If a program keeps allocating more and more cpu time or memory, several problems can occur that can be difficult to spot and hard to solve. You can buy more memory, but even that will get clogged after some time if you're dealing with poorly implemented applications.
@@ -320,4 +321,61 @@ If both static and dynamic provisioning don't work, the claim will remain in pen
 
 If sucessful, the PVC can be mounted like any other volume into your pod.
 
-One of the nice features of PVs is that they offer **Use protection**. That means you cannot delete a PV still used by a PVC, and you cannot delete a PVC still mounted by a pod. If you try to delete it, kubernetes will remember your wish an honour it as soon as the pod stops using the PVC. You could think of it as a *pending delete*-state (Kubernetes will call the state `Terminating`).
+One of the nice features of PVs is that they offer **Use protection**. That means you cannot delete a PV still used by a PVC, and you cannot delete a PVC still mounted by a pod. If you try to delete it, kubernetes will remember your wish and honor it as soon as the pod stops using the PVC. You could think of it as a *pending delete*-state (Kubernetes will call the state `Terminating`).
+
+Ok enough theory. We can create a PV like this:
+```yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: task-pv-volume
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/mnt/data"
+```
+Using a hostPath as PV is not a common apporach in production. It is much more common to use storage from a cloud provider (AWS, azure, ...) which is scalable. But we're not getting into the rabbit hole of cloud computing here. That's why we're using hostPath.
+
+If you now create the PV and view the infomration about it, you should get its status as `available`. That means it has been created, but not used yet.
+
+So let's use it! Create a PVC like this:
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: task-pv-claim
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 30Mi
+```
+This claims 30 MB of the PVs orginial 1 GB storage. Create it and check out the status of the PV. It should say `bound`. 
+
+Now you can mount the pvc into your pod. Add this to `spec`:
+```yaml  
+  volumes:
+    - name: my-volume
+      persistentVolumeClaim:
+        claimName: task-pv-claim
+```
+Of course you need to add the pvc to the container, too. You alredy know how to do that.
+
+You can set a policy about what to do with the pv after the pvc has been deleted. There are 3 possibilities:
+- Delete: PV is deleted and storage is immidiately freed to be used by other ressources. Choose this policy if you need to save storage, but don't care about the PVC data
+- Retain: Keep PV, memory is still accessible until deleted by admin. This is the right approach if the PVC conains important data you don't want to loose.
+- Recycle: Deprecated, thus irrelevant
+## Storage classes
+Print out storage classes by running
+```bash
+kubectl get storageclasses
+```
+One of the classes will be marked as `default`. When a PVC is created, it will use this storage class unless otherwise specified. If you remove the default-specifier from the storage class, new PVCs will be created with no storage class.
