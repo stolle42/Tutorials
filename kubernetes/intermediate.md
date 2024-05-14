@@ -3,6 +3,9 @@
   - [How to restrict memory usage](#how-to-restrict-memory-usage)
   - [How to restrict cpu usage](#how-to-restrict-cpu-usage)
 - [Network](#network)
+  - [Services](#services)
+    - [How to create temporary pods to debug network issues](#how-to-create-temporary-pods-to-debug-network-issues)
+    - [How to ???](#how-to-)
   - [Network policies](#network-policies)
     - [How to set up ingress](#how-to-set-up-ingress)
 - [Security](#security)
@@ -85,8 +88,82 @@ Of course we can't use the unit `bytes` here. Instead, kubernetes created a new 
 ```
 
 # Network
+## Services
+We [already introduced](introduction.md#how-to-expose-a-pod) services and established how we can expose a pod to the outside world using services. Let's now take a deeper dive into services.
+
+First, let's clarify why we even need services. Couldn't we just expose all the ip-adresses from the pods?
+
+Well, that would cause several problems, even if we ignore security concerns. Pods are usually created by a deployment and are therefore **ephemeral**: A pod can easily be replaced by another in case of failure or completion. If we want to reduce the number of replicated pods, we can easily do so by changing a parameter in the deployment. In other words: We cannot rely on the pod to stay the same indefinitely.
+
+That would make kubernetes application development quite cumbersome. We cannot reuse the former ip-adress, since it might not exist anymore. we need to rediscover the pod every single time.
+
+Of course, noone wants that. That's why we need services. With them, we can wrap groups of pods and pretend to the outside like they have a single constant ip-adress.
+
+"Groups of pods"? How does the service know what group? Well, we already learned about labels. They can be used as selectors. As an example, we could create a service with the selector `type: backend` and then add the label `type: backend` to every pod we want to expose.
+
+ There are 4 types of services:
+- ClusterIP: Service is only accessible from inside the cluster (useful for internal website communication, e.g. frontend-backend).
+- NodePort: Service is accessible from outside the cluster on a specific port
+- LoadBalancer: Service is accessible from outside the cluster via an external program that tries to divide the traffic to the endpoints equally
+- ExternalName: Service is accessible on a DNS-name
+
+Let's get our hands dirty now. First we create a deployment:
+```
+kubectl create deployment mydeployment --image=nginx --replicas=3
+```
+Nginx is by default configured to listen to port 80. So let's create a service that exposes nginx to some port, let's say 3000:
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: hello-service
+spec:
+  selector:
+  # the label app:[deployment-name] was added automatically when we created the deployment
+    app: mydeployment
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3000
+```
+Ok great, we exposed our pods on port 3000. But which IP-adress? Well, kubernetes automatically adds this information to the manifest file. The quickest way to get it is
+```sh
+kubectl get svc hello-service -o=jsonpath='{.spec.clusterIP}' 
+```
+**jsonpath** is a cool trick enabling us to get any subpart of the manifest file printed out. Remember this Ip-adress (or write it down), we will need it later and refer to it like this `[clusterIP adress]`.
+
+So we got the ip-adress and the port (3000). We can now just access it from the command line, right? No. Try it, but it wont work That's because we didn't specify the service type, causing it to default to ClusterIP. As explained above, ClusterIP is not accessible from outside the cluster. So how do we check if a clusterIP-service is working corectly?
+
+Well, there is a trick that is quite useful in many such situations:
+### How to create temporary pods to debug network issues
+Creating pods temporarily can be pretty useful. In our use case, we want to access port 3000 to check if the nginx startpage is available there. Let's create a pod:
+```sh
+kubectl run temp --image=nginx:alpine
+```
+Ok, why did we pick `nginx:alpine`? Well, a temporary pod should, of course, be as lightweight as possible to reduce creation destruction time and also to reduce its impact on the cluster. But we have to add `nginx` because `alpine` by itself does not have `curl`.
+
+Now lets get into the container by running
+```sh
+ kubectl exec -it temp -- /bin/sh
+```
+From there, you can run
+```sh
+curl [clusterIP adress]:3000
+```
+If it shows the nginx-startpage, you succeeded.
+
+Now get out of the pod and delete it:
+```sh
+kubectl delete pod tmp
+```
+Alternatively, we could complete the whole process for which we needed 4 commands in 1 command (we programmers are lazy):
+```sh
+kubectl run temp --rm -i --image=nginx:alpine --restart=Never -- curl [clusterIP adress]:3000
+```
+### How to ???
+Ok, great, so our service is working. But 
 ## Network policies
-We [already established](#how-to-expose-a-pod) how we can expose a pod to the outside world using services. But there's much more to be considered when using network. We can restrict **ingress** (inbound) and **egress**(outbound) traffic to improve security. In Kubernetes, this is called **isolating** a pod, although traffic is not, as the word `isolating` would imply, cut off from the outside world completely. Only specific connections are forbidden.
+We can restrict **ingress** (inbound) and **egress**(outbound) traffic to improve security. In Kubernetes, this is called **isolating** a pod, although traffic is not, as the word "isolating" would imply, cut off from the outside world completely. Only specific connections are forbidden.
 ### How to set up ingress
 It does not make sense to set up ingress without a namesspace, so let's create one:
 ```bash

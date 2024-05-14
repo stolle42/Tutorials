@@ -16,12 +16,11 @@
   - [How to deploy busybox](#how-to-deploy-busybox)
   - [How to change specific settings without opening the manifest file](#how-to-change-specific-settings-without-opening-the-manifest-file)
   - [How to sort objects from kubectl get](#how-to-sort-objects-from-kubectl-get)
+  - [How to edit a running ressource](#how-to-edit-a-running-ressource)
 - [First steps](#first-steps)
   - [Volumes](#volumes)
     - [How to store data permanently](#how-to-store-data-permanently)
     - [How to share data in pods with multiple containers](#how-to-share-data-in-pods-with-multiple-containers)
-    - [Persistent volumes (PVs)](#persistent-volumes-pvs)
-    - [Persistent volume claims (PVCs)](#persistent-volume-claims-pvcs)
   - [How to store confidential data](#how-to-store-confidential-data)
     - [How to create and use secretes](#how-to-create-and-use-secretes)
     - [Shortcomings of secrets](#shortcomings-of-secrets)
@@ -77,15 +76,9 @@ kubectl get pods
 ```
 Watch the status column. The status of your pod should be `pending` for the first few seconds, then switch to `running`. If should not show `failed` or any other errors.
 ## How to expose a pod
-So far, the containers have been closed of in kubernets, unavailable to the ouside world. In order to actually benefit from the power of kubernetes, the containers need to be exposed, so they can act as web servers we can access with a browser.
+So far, the containers have been closed off in kubernets, unavailable to the ouside world. In order to actually benefit from the power of kubernetes, the containers need to be exposed, so they can act as web servers accessible with a browser.
 
-In order to do this, we need to create a **service**. In Kubernetes, services group some pods together and set a common access policy to them. There are 4 types of services:
-- ClusterIP: Service is only accessible from inside the cluster
-- NodePort: Service is accessible from outside the cluster on a specific port
-- LoadBalancer: Service is accessible from outside the cluster via an external program that tries to divide the traffic to the endpoints equally
-- ExternalName: Service is accessible on a DNS-name
-
-In our case, we will expose one port of a pod with a NodePort-service:
+In order to do this, we need to create a **service**. In Kubernetes, services group some pods together and set a common access policy to them. We also need to specify the service type as NodePort. We will dive deeper into services [later](intermediate.md#Services):
 ```bash
 kubectl expose pod hellopod --port=80 --type=NodePort
 ```
@@ -105,9 +98,9 @@ Head over to your browser and open
 ```
 If it shows "Welcome to nginx" (or your own application if you used it), great! You have sucessfully integrated an application in kubernetes!
 
-If now delete the service with
+If we now delete the service with
 ```bash
-
+kubectl delete service hellopod
 ```
 the application should not be available anymore in your browser.
 ## How to create a deployment
@@ -238,6 +231,15 @@ Ok that didn't work. Why? Well, you can't sort by one of the columns. Instead, y
 kubectl get pods --sort-by=.metadata.creationTimestamp
 ```
 This should now work.
+## How to edit a running ressource
+Some ressources (e.g. pod) cannot be edited while they are live. Instead, we need to awkwardly delete and recreate them every time we want to change something. Is there a better way? Yes, there is. The process can be automated by running 
+```sh
+kubectl -f [sourcefile.yaml] replace 
+```
+But 
+```sh
+kubectl -f [sourcefile.yaml] replace --force --grace-period=0
+```
 # First steps
 ## Volumes
 If a pod needs to access data outside the pod, you need to use **volumes**. There are several use cases for this which we'll discuss later, but let's have a look at the volume concept first. There are 2 volume categories:
